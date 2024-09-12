@@ -28,18 +28,3 @@ local Window = Rayfield:CreateWindow({
 
  local MainTab = Window:CreateTab("🔰 Home", nil)
  local MainSection = MainTab:CreateSection("Main")
-
- Rayfield:Notify({
-   Title = "You ececuted the Script",
-   Content = "Very Gui",
-   Duration = 3,
-   Image = nil,
-   Actions = {
-      Ignore = {
-         Name = "Okay",
-         Callback = function()
-            print ("Executed Script")
-         end
-      },
-   },
- })
