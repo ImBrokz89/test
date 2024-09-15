@@ -2,7 +2,7 @@ local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/
 
 
 local Window = Fluent:CreateWindow({
-   Title = "Omega Hub Sword Simulator",
+   Title = "Omega Hub I Sword Simulator",
    TabWidth = 160,
    Size = UDim2.fromOffset(580, 460),
    Theme = "Dark",
@@ -146,6 +146,3 @@ local Toggle = Tabs.Settings:AddToggle("Transparency",
     end
 
 })
-
-
-   
