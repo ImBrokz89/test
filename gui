@@ -26,7 +26,6 @@ local Tabs = {
 
 --------------- Main
 
-
 local Toggle = Tabs.Main:AddToggle("Auto Farm",
 {
     Title = "Auto Farm V1",
@@ -112,6 +111,9 @@ local Toggle = Tabs.Players:AddToggle("Auto Best Sword",
     end
 })
 
+
+local Section = Tabs.Players:AddSection("Pets")
+
 local Toggle = Tabs.Players:AddToggle("Auto Best Pets",
 {
     Title = "Best Pets",
@@ -127,10 +129,8 @@ local Toggle = Tabs.Players:AddToggle("Auto Best Pets",
 
 
 
-
-
 -------------- Settings
-
+local Section = Tabs.Settings:AddSection("Interface")
 
 local Toggle = Tabs.Settings:AddToggle("Transparency", 
 {
@@ -146,3 +146,6 @@ local Toggle = Tabs.Settings:AddToggle("Transparency",
     end
 
 })
+
+
+   
