@@ -1,0 +1,168 @@
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+
+
+local Window = Fluent:CreateWindow({
+   Title = "Omega Hub I Sword Simulator",
+   TabWidth = 160,
+   Size = UDim2.fromOffset(580, 460),
+   Theme = "Dark",
+   Acrylic = false,
+   MinimizeKey = Enum.KeyCode.End 
+})
+
+Fluent:Notify({
+   Title = "Notification",
+   Content = "Script injected :)",
+   Duration = 5 
+})
+
+local Tabs = {
+   Main = Window:AddTab({ Title = "Auto Farm",}),
+   Misc = Window:AddTab({ Title = "Misc",}),
+   Players = Window:AddTab({Title = "Player"}),
+   Settings = Window:AddTab({ Title = "Settings",})
+}
+
+
+--------------- Main
+
+local Toggle = Tabs.Main:AddToggle("Auto Farm",
+{
+    Title = "Auto Farm V1",
+    Default = false, 
+    Callback = function(auto)
+        _G.autoFarmEnabled = auto
+        while _G.autoFarmEnabled do
+            game:GetService("ReplicatedStorage").Remotes.Weapon.TakeDamage:FireServer()
+
+            wait(0.2)
+           -- game.Players.LocalPlayer.PlayerScripts.PlayerModule.ControlModule.ClickToMoveController()
+          --  wait(0.1)
+            print("start auto farm")
+        end
+    end
+})
+
+
+local Toggle = Tabs.Main:AddToggle("Auto Rebirth",
+{
+    Title = "Auto Rebirth ",
+    Default = false, 
+    Callback = function(Rebirth)
+        _G.autoascendEnabled = Rebirth
+        while _G.autoascendEnabled do
+            game:GetService("ReplicatedStorage").Remotes.Profile.RebirthRequest:InvokeServer()
+
+            wait(5)
+        end
+
+    end
+})
+
+
+--------------- Misc
+
+Tabs.Misc:AddButton({
+    Title = "Redeem All Code",
+    Callback = function()
+        local args = {
+            [1] = "OnlineGift001"
+
+        }
+        game:GetService("ReplicatedStorage").Events.Stats.Re_ClaimOnline:FireServer(unpack(args))
+    end
+})
+
+Tabs.Misc:AddButton({
+    Title = "Claim Daily chest",
+    Callback = function()
+    local args = {
+      [1] = "Chest 1"
+    }
+
+    game:GetService("ReplicatedStorage").Packages.Knit.Services.ChestService.RF.ClaimChest:InvokeServer(unpack(args))
+    end
+})
+
+Tabs.Misc:AddButton({
+    Title = "Claim Wheels",
+    Callback = function()
+    game:GetService("ReplicatedStorage").Packages.Knit.Services.WheelService.RF.SpinWheel:InvokeServer()
+    end
+})
+
+
+
+
+
+
+
+
+--------------- Players
+
+local Toggle = Tabs.Players:AddToggle("WalkSpeed", 
+{
+    Title = "WalkSpeed V1", 
+    Default = false, 
+    Callback = function(state)
+	if state then
+	    game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = (360)
+	    else
+            game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = (16)
+        end
+    end 
+})
+
+
+
+local Toggle = Tabs.Players:AddToggle("Auto Best Sword",
+{
+    Title = "Best Sword",
+    Default = false, 
+    Callback = function(sword)
+        _G.autoswordEnabled = sword
+        while _G.autoswordEnabled do
+            game:GetService("ReplicatedStorage").Remotes.Weapon.EquipBest:FireServer()
+              wait(20)
+        end
+    end
+})
+
+
+local Section = Tabs.Players:AddSection("Pets")
+
+local Toggle = Tabs.Players:AddToggle("Auto Best Pets",
+{
+    Title = "Best Pets",
+    Default = false, 
+    Callback = function(pets)
+        _G.autopetsEnabled = pets
+        while _G.autopetsEnabled do
+            game:GetService("ReplicatedStorage").Remotes.Common.Pet.EquipBest:FireServer()
+            wait(15)
+        end
+    end
+})
+
+
+
+-------------- Settings
+local Section = Tabs.Settings:AddSection("Interface")
+
+local Toggle = Tabs.Settings:AddToggle("Transparency", 
+{
+    Title = "Transparency UI", 
+    Default = true, 
+    Callback = function(Transparency)
+        if Transparency then
+            Fluent:ToggleTransparency(true)
+        else
+            Fluent:ToggleTransparency(false)
+        end
+
+    end
+
+})
+
+
+   
