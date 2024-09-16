@@ -49,7 +49,7 @@ local Toggle = Tabs.Main:AddToggle("Auto Ascend",
         _G.autoascendEnabled = Ascend
         while _G.autoascendEnabled do
             game:GetService("ReplicatedStorage").Packages.Knit.Services.AscendService.RF.Ascend:InvokeServer()
-            wait(10)
+            wait(5)
         end
 
     end
@@ -79,6 +79,19 @@ Tabs.Misc:AddButton({
     game:GetService("ReplicatedStorage").Packages.Knit.Services.ChestService.RF.ClaimChest:InvokeServer(unpack(args))
     end
 })
+
+Tabs.Misc:AddButton({
+    Title = "Claim Wheels",
+    Callback = function()
+    game:GetService("ReplicatedStorage").Packages.Knit.Services.WheelService.RF.SpinWheel:InvokeServer()
+    end
+})
+
+
+
+
+
+
 
 
 --------------- Players
