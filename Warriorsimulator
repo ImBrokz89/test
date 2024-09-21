@@ -21,6 +21,7 @@ local Tabs = {
     Main = Window:AddTab({ Title = "Auto Farm",}),
     Misc = Window:AddTab({ Title = "Misc",}),
     Players = Window:AddTab({Title = "Player"}),
+    Stats = Window:AddTab({Title = "Stats"}),
     Eggs = Window:AddTab({ Title = "Eggs",}),
     Settings = Window:AddTab({ Title = "Settings",})
  }
@@ -38,12 +39,10 @@ local Tabs = {
              game:GetService("ReplicatedStorage").Remotes.Weapon.TakeDamage:FireServer()
              wait(0.2)
              game:GetService("ReplicatedStorage").Remotes.Weapon.HitTrain:FireServer()
-             print("start auto farm")
          end
      end
  })
- 
- 
+
  local Toggle = Tabs.Main:AddToggle("Auto Rebirth",
  {
      Title = "Auto Rebirth ",
@@ -52,13 +51,12 @@ local Tabs = {
          _G.autoascendEnabled = Rebirth
          while _G.autoascendEnabled do
              game:GetService("ReplicatedStorage").Remotes.Profile.RebirthRequest:InvokeServer()
- 
-             wait(5)
+             wait(15)
          end
  
      end
  })
- 
+
  local Section = Tabs.Main:AddSection("Players Farm")
  
  local Toggle = Tabs.Main:AddToggle("Auto Fight",
@@ -80,7 +78,7 @@ local Tabs = {
          end 
      end
  })
- 
+
  
  --------------- Misc
  Tabs.Misc:AddButton({
@@ -97,14 +95,13 @@ local Tabs = {
 
  
  Tabs.Misc:AddButton({
-     Title = "Claim Daily chest",
+     Title = "Claim Daily Gift",
      Callback = function()
-     local args = {
-       [1] = "Chest 1"
-     }
- 
-     game:GetService("ReplicatedStorage").Packages.Knit.Services.ChestService.RF.ClaimChest:InvokeServer(unpack(args))
-     end
+        local args = {
+             [1] = 2
+        }
+        game:GetService("ReplicatedStorage").Remotes.Common.Reward.DailyReward:InvokeServer(unpack(args))
+    end
  })
  
  Tabs.Misc:AddButton({
@@ -124,7 +121,7 @@ local Tabs = {
      Title = "WalkSpeed V1",
      Default = 16,
      Min = 16,
-     Max = 360,
+     Max = 120,
      Rounding = 1,
      Callback = function(Value)
          game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = Value
@@ -162,6 +159,78 @@ local Tabs = {
      end
  })
 
+
+--------------- Stats
+local Toggle = Tabs.Stats:AddToggle("Stats Defense",
+{
+    Title = "Stats Defense",
+    Default = false, 
+    Callback = function(pets)
+        _G.Defense = pets
+        while _G.Defense do
+            local args = {
+         [1] = "Defense",
+         [2] = 1
+        }
+        game:GetService("ReplicatedStorage").Remotes.Profile.AddPoint:FireServer(unpack(args))
+
+            wait(15)
+        end
+    end
+})
+
+local Toggle = Tabs.Stats:AddToggle("Stats Damage",
+{
+    Title = "Stats Damage",
+    Default = false, 
+    Callback = function(pets)
+        _G.damage = pets
+        while _G.damage do
+            local args = {
+         [1] = "Damage",
+         [2] = 1
+        }
+        game:GetService("ReplicatedStorage").Remotes.Profile.AddPoint:FireServer(unpack(args))
+
+            wait(15)
+        end
+    end
+})
+
+local Toggle = Tabs.Stats:AddToggle("Stats Speed",
+{
+    Title = "Stats Speed",
+    Default = false, 
+    Callback = function(pets)
+        _G.Speed = pets
+        while _G.Speed do
+            local args = {
+         [1] = "Speed",
+         [2] = 1
+        }
+        game:GetService("ReplicatedStorage").Remotes.Profile.AddPoint:FireServer(unpack(args))
+
+            wait(15)
+        end
+    end
+})
+
+local Toggle = Tabs.Stats:AddToggle("Stats Luck",
+{
+    Title = "Stats Luck",
+    Default = false, 
+    Callback = function(pets)
+        _G.Luck = pets
+        while _G.Luck do
+            local args = {
+             [1] = "Luck",
+             [2] = 1
+            }
+        game:GetService("ReplicatedStorage").Remotes.Profile.AddPoint:FireServer(unpack(args))
+            wait(15)
+        end
+    end
+})
 --------------- Eggs
 
 
