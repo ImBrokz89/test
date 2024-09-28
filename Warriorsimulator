@@ -22,6 +22,7 @@ local Tabs = {
     Players = Window:AddTab({Title = "Player"}),
     Stats = Window:AddTab({Title = "Stats"}),
     Pets = Window:AddTab({ Title = "Pets",}),
+    Obby = Window:AddTab({ Title = "Obby",}),
     Misc = Window:AddTab({ Title = "Misc",}),
     Settings = Window:AddTab({ Title = "Settings",})
  }
@@ -79,57 +80,7 @@ local Tabs = {
  })
 
 
- --------------- Misc
- Tabs.Misc:AddButton({
-    Title = "Redeem All Codes",
-    Callback = function()
-        local args = {"welcome", "like300k", "like400k"}
-        for _, giftids in ipairs(args) do
-        game:GetService("ReplicatedStorage").Remotes.Common.Reward.CodeReward:FireServer(giftids)
-        wait(0.2)
-        end
-    end
-})
-
- 
-Tabs.Misc:AddButton({
-    Title = "Instant Online Gift",
-    Callback = function()
-        local args = {1, 2, 3, 4, 5, 6, 7, 8}
-        for _, giftId in ipairs(args) do
-            game:GetService("ReplicatedStorage").Remotes.Common.Online.TryGetOnlineGift:InvokeServer(giftId)
-            wait(0.5) 
-        end
-        game:GetService("ReplicatedStorage").Remotes.Common.Online.UpdateOnlineInfo:FireServer()
-    end
-})
-
- Tabs.Misc:AddButton({
-     Title = "Claim Wheels",
-     Callback = function()
-     game:GetService("ReplicatedStorage").Remotes.Common.Spin.TrySpin:InvokeServer()
-     end
- })
- 
- Tabs.Misc:AddButton({
-    Title = "test obby",
-    Callback = function()
-        game:GetService("ReplicatedStorage").Remotes.Obby.GetObbyData:InvokeServer()
-
-        local args = {[1] = "ClearWaves", "OnlineGifts", "StoreFreeGems", "BackroomTreasures", "World4Obby", "AFK"}
-        for _, obby in ipairs(args) do 
-
-        game:GetService("ReplicatedStorage").Remotes.Common.GemHunterDaily.GetDailGemHunterRF:InvokeServer(obby)
-        wait(0.2)
-        game:GetService("ReplicatedStorage").Remotes.Common.GemHunterDaily.IsVIP:InvokeServer()
-        end
-    end
-})
-
- 
- 
  --------------- Players
- 
  
  local Slider = Tabs.Players:AddSlider("WalkSpeed", 
  {
@@ -245,8 +196,6 @@ local Toggle = Tabs.Stats:AddToggle("Stats Luck",
     end
 })
 --------------- Pets
-
---local Section = Tabs.Players:AddSection("Pets")
  
 local Toggle = Tabs.Pets:AddToggle("Auto Best Pets",
 {
@@ -270,7 +219,62 @@ Tabs.Pets:AddButton({
     end
 })
 
+ --------------- Obby
+ Tabs.Obby:AddButton({
+    Title = "Obby World 2",
+    Callback = function()
+        local player = game.Players.LocalPlayer
+        local treasurePart = game:GetService("Workspace").World["2"].Obby.Decoration["结束平台"].baoxiang.tx:FindFirstChild("B - TREASURE")
+        
+        if treasurePart then
+            player.Character.HumanoidRootPart.CFrame = treasurePart.CFrame
+        else
+            print("Partie B - TREASURE introuvable")
+        end
+        
+    end
+})
 
+ --------------- Misc
+ Tabs.Misc:AddButton({
+    Title = "Redeem All Codes",
+    Callback = function()
+        local args = {"welcome", "like300k", "like400k"}
+        for _, giftids in ipairs(args) do
+        game:GetService("ReplicatedStorage").Remotes.Common.Reward.CodeReward:FireServer(giftids)
+        wait(0.2)
+        end
+    end
+})
+
+ 
+Tabs.Misc:AddButton({
+    Title = "Instant Online Gift",
+    Callback = function()
+        local args = {1, 2, 3, 4, 5, 6, 7, 8}
+        for _, giftId in ipairs(args) do
+            game:GetService("ReplicatedStorage").Remotes.Common.Online.TryGetOnlineGift:InvokeServer(giftId)
+            wait(0.5) 
+        end
+        game:GetService("ReplicatedStorage").Remotes.Common.Online.UpdateOnlineInfo:FireServer()
+    end
+})
+
+ Tabs.Misc:AddButton({
+     Title = "Claim Wheels",
+     Callback = function()
+     game:GetService("ReplicatedStorage").Remotes.Common.Spin.TrySpin:InvokeServer()
+     end
+ })
+
+Tabs.Misc:AddButton({
+    Title = "Daily Gems",
+    Callback = function()
+        game:GetService("ReplicatedStorage").Remotes.Common.Market.GetFreeGem:InvokeServer()
+        wait(0.2)
+        game:GetService("ReplicatedStorage").Remotes.Common.Market.LastFreeGemTime:InvokeServer()
+    end
+})
 
 
 
