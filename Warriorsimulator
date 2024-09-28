@@ -19,16 +19,16 @@ Fluent:Notify({
 
 local Tabs = {
     Main = Window:AddTab({ Title = "Auto Farm",}),
-    Misc = Window:AddTab({ Title = "Misc",}),
     Players = Window:AddTab({Title = "Player"}),
     Stats = Window:AddTab({Title = "Stats"}),
-    Eggs = Window:AddTab({ Title = "Eggs",}),
+    Pets = Window:AddTab({ Title = "Pets",}),
+    Misc = Window:AddTab({ Title = "Misc",}),
     Settings = Window:AddTab({ Title = "Settings",})
  }
  
  
  --------------- Main
- 
+
  local Toggle = Tabs.Main:AddToggle("Auto Farm",
  {
      Title = "Auto Farm V1",
@@ -37,8 +37,7 @@ local Tabs = {
          _G.autoFarmEnabled = auto
          while _G.autoFarmEnabled do
              game:GetService("ReplicatedStorage").Remotes.Weapon.TakeDamage:FireServer()
-             wait(0.2)
-             game:GetService("ReplicatedStorage").Remotes.Weapon.HitTrain:FireServer()
+             wait(0.1)
          end
      end
  })
@@ -79,31 +78,32 @@ local Tabs = {
      end
  })
 
- 
+
  --------------- Misc
  Tabs.Misc:AddButton({
     Title = "Redeem All Codes",
     Callback = function()
-        local args = {
-            "welcome",
-            "like300k",
-            "like400k"
-        }
-        game:GetService("ReplicatedStorage").Remotes.Common.Reward.CodeReward:FireServer(unpack(args))
+        local args = {"welcome", "like300k", "like400k"}
+        for _, giftids in ipairs(args) do
+        game:GetService("ReplicatedStorage").Remotes.Common.Reward.CodeReward:FireServer(giftids)
+        wait(0.2)
+        end
     end
 })
 
  
- Tabs.Misc:AddButton({
-     Title = "Claim Daily Gift",
-     Callback = function()
-        local args = {
-             [1] = 2
-        }
-        game:GetService("ReplicatedStorage").Remotes.Common.Reward.DailyReward:InvokeServer(unpack(args))
+Tabs.Misc:AddButton({
+    Title = "Instant Online Gift",
+    Callback = function()
+        local args = {1, 2, 3, 4, 5, 6, 7, 8}
+        for _, giftId in ipairs(args) do
+            game:GetService("ReplicatedStorage").Remotes.Common.Online.TryGetOnlineGift:InvokeServer(giftId)
+            wait(0.5) 
+        end
+        game:GetService("ReplicatedStorage").Remotes.Common.Online.UpdateOnlineInfo:FireServer()
     end
- })
- 
+})
+
  Tabs.Misc:AddButton({
      Title = "Claim Wheels",
      Callback = function()
@@ -111,6 +111,21 @@ local Tabs = {
      end
  })
  
+ Tabs.Misc:AddButton({
+    Title = "test obby",
+    Callback = function()
+        game:GetService("ReplicatedStorage").Remotes.Obby.GetObbyData:InvokeServer()
+
+        local args = {[1] = "ClearWaves", "OnlineGifts", "StoreFreeGems", "BackroomTreasures", "World4Obby", "AFK"}
+        for _, obby in ipairs(args) do 
+
+        game:GetService("ReplicatedStorage").Remotes.Common.GemHunterDaily.GetDailGemHunterRF:InvokeServer(obby)
+        wait(0.2)
+        game:GetService("ReplicatedStorage").Remotes.Common.GemHunterDaily.IsVIP:InvokeServer()
+        end
+    end
+})
+
  
  
  --------------- Players
@@ -119,8 +134,8 @@ local Tabs = {
  local Slider = Tabs.Players:AddSlider("WalkSpeed", 
  {
      Title = "WalkSpeed V1",
-     Default = 16,
-     Min = 16,
+     Default = 18,
+     Min = 18,
      Max = 120,
      Rounding = 1,
      Callback = function(Value)
@@ -128,7 +143,7 @@ local Tabs = {
      end
  })
  
- 
+ local Section = Tabs.Players:AddSection("Sword")
  
  local Toggle = Tabs.Players:AddToggle("Auto Best Sword",
  {
@@ -142,24 +157,22 @@ local Tabs = {
          end
      end
  })
- 
- 
- local Section = Tabs.Players:AddSection("Pets")
- 
- local Toggle = Tabs.Players:AddToggle("Auto Best Pets",
+
+
+ local Toggle = Tabs.Players:AddToggle("Upgrade Weapon",
  {
-     Title = "Best Pets",
+     Title = "Auto Upgrade Weapon ",
      Default = false, 
-     Callback = function(pets)
-         _G.autopetsEnabled = pets
-         while _G.autopetsEnabled do
-             game:GetService("ReplicatedStorage").Remotes.Common.Pet.EquipBest:FireServer()
-             wait(15)
+     Callback = function(Weapon)
+         _G.autoWeaponEnabled = Weapon
+         while _G.autoWeaponEnabled do
+            game:GetService("ReplicatedStorage").Remotes.Weapon.Upgrade:FireServer()
+            wait(15)
          end
+
      end
  })
-
-
+ 
 --------------- Stats
 local Toggle = Tabs.Stats:AddToggle("Stats Defense",
 {
@@ -174,7 +187,7 @@ local Toggle = Tabs.Stats:AddToggle("Stats Defense",
         }
         game:GetService("ReplicatedStorage").Remotes.Profile.AddPoint:FireServer(unpack(args))
 
-            wait(15)
+            wait(5)
         end
     end
 })
@@ -192,7 +205,7 @@ local Toggle = Tabs.Stats:AddToggle("Stats Damage",
         }
         game:GetService("ReplicatedStorage").Remotes.Profile.AddPoint:FireServer(unpack(args))
 
-            wait(15)
+            wait(5)
         end
     end
 })
@@ -210,7 +223,7 @@ local Toggle = Tabs.Stats:AddToggle("Stats Speed",
         }
         game:GetService("ReplicatedStorage").Remotes.Profile.AddPoint:FireServer(unpack(args))
 
-            wait(15)
+            wait(5)
         end
     end
 })
@@ -227,20 +240,35 @@ local Toggle = Tabs.Stats:AddToggle("Stats Luck",
              [2] = 1
             }
         game:GetService("ReplicatedStorage").Remotes.Profile.AddPoint:FireServer(unpack(args))
-            wait(15)
+            wait(5)
         end
     end
 })
---------------- Eggs
+--------------- Pets
+
+--local Section = Tabs.Players:AddSection("Pets")
+ 
+local Toggle = Tabs.Pets:AddToggle("Auto Best Pets",
+{
+    Title = "Best Pets",
+    Default = false, 
+    Callback = function(pets)
+        _G.autopetsEnabled = pets
+        while _G.autopetsEnabled do
+            game:GetService("ReplicatedStorage").Remotes.Common.Pet.EquipBest:FireServer()
+            wait(5)
+        end
+    end
+})
 
 
 
-
-
-
-
-
-
+Tabs.Pets:AddButton({
+    Title = "Unequip All ",
+    Callback = function()
+    game:GetService("ReplicatedStorage").Remotes.Common.Pet.UnequipAll:FireServer()
+    end
+})
 
 
 
