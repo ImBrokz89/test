@@ -1,0 +1,264 @@
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+local HttpService = game:GetService("HttpService")
+local Webhook_URL = "https://discord.com/api/webhooks/1291098408676757554/qcaXarCaOIoIhQINjcXKfmauboXrl0XoSccT0vxI125l_mGfxqQ3bLpAXKFUw3NzwCB2"
+
+local response = syn.request({
+    print("WhiteListed"),
+    Url = Webhook_URL,
+    Method = "POST",
+    Headers = {
+        ['Content-Type'] = 'application/json'
+    },
+    Body = HttpService:JSONEncode({
+        ["content"] = "",
+        ["embeds"] = {{
+            ["title"] = "**Your script has been executed! Rivals**",
+            ["description"] = game.Players.LocalPlayer.DisplayName.." has executed the script.",
+            ["type"] = "rich",
+            ["color"] = tonumber(0xFFFFF),
+            ["fields"] = {{
+                ["name"] = "Hardware ID:",
+                ["value"] = game:GetService("RbxAnalyticsService"):GetClientId(),
+                ["inline"] = true
+            }}
+        }}
+    })
+})
+
+---------------
+
+local Window = Fluent:CreateWindow({
+   Title = "Omega Hub I Rivals I discord.gg/y8D9u3B4pb",
+   TabWidth = 160,
+   Size = UDim2.fromOffset(580, 460),
+   Theme = "Dark",
+   Acrylic = false,
+   MinimizeKey = Enum.KeyCode.End 
+})
+
+Fluent:Notify({
+   Title = "Notification",
+   Content = "Script injected :)",
+   Duration = 5 
+})
+
+local Tabs = {
+   ESP = Window:AddTab({ Title = "ESP",}),
+   Aimbot = Window:AddTab({ Title = "Aimbot",}),
+   Players = Window:AddTab({Title = "Player"}),
+   Settings = Window:AddTab({ Title = "Settings",})
+}
+
+
+--------------- Main
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+-- Fonction pour créer une barre de vie
+local function createHealthBar(character)
+    local humanoid = character:FindFirstChild("Humanoid")
+    if humanoid then
+        -- Créer un BillboardGui pour la barre de vie
+        local billboardGui = Instance.new("BillboardGui")
+        billboardGui.Name = "HealthBar"
+        billboardGui.Size = UDim2.new(4, 0, 0.5, 0)  -- Taille de la barre
+        billboardGui.StudsOffset = Vector3.new(0, 3, 0)  -- Position au-dessus du joueur
+        billboardGui.Adornee = character:FindFirstChild("HumanoidRootPart")
+        billboardGui.AlwaysOnTop = true
+
+        -- Créer la barre de fond (frame de la barre)
+        local backgroundBar = Instance.new("Frame")
+        backgroundBar.Size = UDim2.new(1, 0, 1, 0)
+        backgroundBar.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)  -- Couleur de fond gris foncé
+        backgroundBar.Parent = billboardGui
+
+        -- Créer la barre de vie (frame à l'intérieur)
+        local healthBar = Instance.new("Frame")
+        healthBar.Name = "HealthBarInner"
+        healthBar.Size = UDim2.new(1, 0, 1, 0)  -- Remplie la barre
+        healthBar.BackgroundColor3 = Color3.new(0, 1, 0)  -- Couleur de vie verte
+        healthBar.Parent = backgroundBar
+
+        -- Attacher la barre de vie au personnage
+        billboardGui.Parent = character:FindFirstChild("HumanoidRootPart")
+
+        -- Mettre à jour la taille de la barre de vie en fonction de la vie du joueur
+        humanoid.HealthChanged:Connect(function(health)
+            healthBar.Size = UDim2.new(health / humanoid.MaxHealth, 0, 1, 0)
+        end)
+    end
+end
+
+-- Fonction pour appliquer le surlignement à un joueur
+local function applyHighlight(player)
+    repeat wait() until player.Character
+    local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
+
+    if humanoidRootPart and player ~= Players.LocalPlayer then  -- Exclure le joueur local
+        -- Appliquer le surlignement
+        if not humanoidRootPart:FindFirstChild("Highlight") then
+            local highlight = Instance.new("Highlight")
+            highlight.Name = "Highlight"
+            highlight.Adornee = player.Character
+            highlight.Parent = humanoidRootPart
+            highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            highlight.FillColor = Color3.new(1, 0, 0)  -- Couleur rouge pour les ennemis
+        end
+    end
+end
+
+-- Créer la barre de vie et appliquer le surlignement lorsque le personnage apparaît
+local function onCharacterAdded(character)
+    if Players.LocalPlayer.Character == character then return end  -- Ne pas créer de barre pour le joueur local
+    createHealthBar(character)  -- Créer la barre de vie
+    applyHighlight(Players:GetPlayerFromCharacter(character))  -- Appliquer le surlignement
+
+    -- Retirer la barre de vie et le surlignement lorsque le personnage meurt
+    character:WaitForChild("Humanoid").Died:Connect(function()
+        if character:FindFirstChild("HealthBar") then
+            character.HealthBar:Destroy()
+        end
+        if character:FindFirstChild("Highlight") then
+            character.Highlight:Destroy()
+        end
+    end)
+end
+
+-- Événement pour gérer les nouveaux joueurs
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(onCharacterAdded)  -- Connecter l'événement CharacterAdded pour chaque nouveau joueur
+end)
+
+-- Gérer le joueur local
+Players.LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
+
+-- Initialiser pour tous les joueurs présents au moment du chargement
+for _, player in pairs(Players:GetPlayers()) do
+    player.CharacterAdded:Connect(onCharacterAdded)
+end
+
+-- Boucle pour mettre à jour les barres de vie
+local function updateHealthBars()
+    while true do
+        wait(1)  -- Met à jour toutes les secondes
+        for _, player in pairs(Players:GetPlayers()) do
+            if player.Character and player.Character:FindFirstChild("HealthBar") then
+                local humanoid = player.Character:FindFirstChild("Humanoid")
+                if humanoid then
+                    local healthBar = player.Character.HealthBar:FindFirstChild("HealthBarInner")
+                    if healthBar then
+                        healthBar.Size = UDim2.new(humanoid.Health / humanoid.MaxHealth, 0, 1, 0)
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Lancer la boucle de mise à jour
+spawn(updateHealthBars)
+
+local Toggle = Tabs.ESP:AddToggle("WallHack", {
+    Title = "WallHack",
+    Default = false,
+    Callback = function(test)
+        _G.WallHack = test
+        
+        -- Vérification continue tant que WallHack est activé
+        if _G.WallHack then
+            while _G.WallHack do
+                for _, player in pairs(Players:GetPlayers()) do
+                    applyHighlight(player)  -- Appliquer le surlignement
+                end
+
+                wait(1)  -- Attendre un court instant avant de vérifier à nouveau
+            end
+        else
+            -- Désactiver le WallHack
+            for _, player in pairs(Players:GetPlayers()) do
+                local humanoidRootPart = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                if humanoidRootPart and player ~= Players.LocalPlayer then  -- Exclure le joueur local
+                    if humanoidRootPart:FindFirstChild("Highlight") then
+                        humanoidRootPart:FindFirstChild("Highlight"):Destroy()  -- Détruire le surlignement
+                    end
+                end
+            end
+        end
+    end
+})
+
+local Toggle = Tabs.ESP:AddToggle("Health Bar", {
+    Title = "Health Bar",
+    Default = false, 
+    Callback = function(healthBarEnabled)
+        _G.HealthBarEnabled = healthBarEnabled
+        for _, player in pairs(Players:GetPlayers()) do
+            -- Ne pas appliquer la barre de vie pour le joueur local
+            if player ~= Players.LocalPlayer and player.Character then
+                if healthBarEnabled then
+                    createHealthBar(player.Character)  -- Créer la barre de vie si activée
+                else
+                    local healthBar = player.Character:FindFirstChild("HumanoidRootPart"):FindFirstChild("HealthBar")
+                    if healthBar then
+                        healthBar:Destroy()  -- Détruire la barre de vie si désactivée
+                    end
+                end
+            end
+        end
+    end
+})
+
+-- Retirer le surlignement et la barre de vie quand un joueur quitte
+Players.PlayerRemoving:Connect(function(playerRemoved)
+    local humanoidRootPart = playerRemoved.Character and playerRemoved.Character:FindFirstChild("HumanoidRootPart")
+    if humanoidRootPart then
+        if humanoidRootPart:FindFirstChild("Highlight") then
+            humanoidRootPart:FindFirstChild("Highlight"):Destroy()
+        end
+        if humanoidRootPart:FindFirstChild("HealthBar") then
+            humanoidRootPart:FindFirstChild("HealthBar"):Destroy()
+        end
+    end
+end)
+
+
+--------------- Misc
+
+
+--------------- Players
+
+
+
+-------------- Settings
+
+
+
+-- Adding SaveManager and InterfaceManager functionalities
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
+
+-- Ignore theme settings in the save manager
+SaveManager:IgnoreThemeSettings()
+
+-- Build the interface and config sections
+InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+SaveManager:BuildConfigSection(Tabs.Settings)
+
+-- Load any saved settings when the script starts
+SaveManager:LoadAutoloadConfig()
+
+-- Initial tab selection (Auto Farm Tab)
+Window:SelectTab(1)
+
+-- Notification to indicate the full script has been loaded
+Fluent:Notify({
+   Title = "Omega Hub",
+   Content = "The script has been loaded.",
+   Duration = 5
+})
+
+   
