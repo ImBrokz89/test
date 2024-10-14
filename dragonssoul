@@ -1,0 +1,118 @@
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/ImBrokz89/test/main/addons"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/ImBrokz89/test/main/Maddons"))()
+
+local Window = Fluent:CreateWindow({
+    Title = "Omega Hub I Dev",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Theme = "Dark",
+    Acrylic = false,
+    MinimizeKey = Enum.KeyCode.End 
+})
+
+Fluent:Notify({
+    Title = "Notification",
+    Content = "Script injected :)",
+    Duration = 5 
+})
+
+local Tabs = {
+    AutoFarm = Window:AddTab({ Title = "Auto Farm", Icon = "swords" }),
+    Players = Window:AddTab({ Title = "Player", Icon = "layers" }),
+    Stats = Window:AddTab({ Title = "Stats", Icon = "trending-up" }),
+    Misc = Window:AddTab({ Title = "Misc", Icon = "flame" }),
+    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
+}
+
+--------------- Dev
+local player = game.Players.LocalPlayer
+local humanoidRootPart = player.Character:WaitForChild("HumanoidRootPart")
+
+local attackDelay = 0.05 
+
+local function KillAura()
+    local liveFolder = workspace:WaitForChild("Main"):WaitForChild("Live")
+    while _G.tetstst do 
+        for _, npc in pairs(liveFolder:GetChildren()) do
+            local humanoidRootPartNPC = npc:FindFirstChild("HumanoidRootPart")
+
+            
+            if humanoidRootPartNPC then
+                
+                local distance = (humanoidRootPart.Position - humanoidRootPartNPC.Position).Magnitude
+
+                if distance <= 30 then
+
+                    local args = {
+                        [1] = {
+                            ["Victim"] = npc, 
+                            ["VictimPosition"] = humanoidRootPartNPC.Position,
+                            ["CurrentHeavy"] = 2,
+                            ["LocalInfo"] = {
+                                ["Flying"] = false
+                            },
+                            ["CurrentLight"] = 2,
+                            ["CurrentLightCombo"] = 2,
+                            ["Type"] = "Light",
+                            ["AnimSet"] = "Generic"
+                        }
+                    }
+                    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("TryAttack"):FireServer(unpack(args))
+                    wait(attackDelay)
+                end
+            end
+        end
+        wait(0.1)
+    end
+end
+
+local Toggle = Tabs.AutoFarm:AddToggle("Auto Attaque", {
+    Title = "Kill Auras",
+    Callback = function(test)
+        _G.tetstst = test
+        if test then
+            KillAura()
+        end
+    end
+})
+
+
+
+local Toggle = Tabs.Stats:AddToggle("Auto Farm Strength", {
+    Title = "Stats Strength",
+    Callback = function(test)
+        _G.autoFarmEnabled = test
+        while _G.autoFarmEnabled do
+            local args = {[1] = {[1] = {["Stat"] = "Strength",["Amount"] = 1},[2] = "t"}}
+            game:GetService("ReplicatedStorage"):WaitForChild("dataRemoteEvent"):FireServer(unpack(args))
+            wait(0.5)
+        end 
+    end
+})
+
+---------------
+
+-- Adding SaveManager and InterfaceManager functionalities
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
+
+-- Ignore theme settings in the save manager
+SaveManager:IgnoreThemeSettings()
+
+-- Build the interface and config sections
+InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+SaveManager:BuildConfigSection(Tabs.Settings)
+
+-- Load any saved settings when the script starts
+SaveManager:LoadAutoloadConfig()
+
+-- Initial tab selection (Auto Farm Tab)
+Window:SelectTab(1)
+
+-- Notification to indicate the full script has been loaded
+Fluent:Notify({
+    Title = "Omega Hub",
+    Content = "The script has been loaded.",
+    Duration = 5
+})
