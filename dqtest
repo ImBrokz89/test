@@ -80,7 +80,7 @@ SpendSkillPoints()
 --------------------------------------------------
 
 local DUNGEON_NAME = "Winter Outpost"
-local DUNGEON_DIFFICULTY = "Easy"
+local DUNGEON_DIFFICULTY = "Medium"
 
 --------------------------------------------------
 -- AUTO CREATE DUNGEON
