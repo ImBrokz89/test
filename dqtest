@@ -36,20 +36,6 @@ LocalPlayer.OnTeleport:Connect(function()
 end)
 
 --------------------------------------------------
--- ATTENDRE LE SPAWN
---------------------------------------------------
-
-repeat
-    task.wait(0.1)
-    Character = LocalPlayer.Character
-until Character
-    and Character:FindFirstChild("HumanoidRootPart")
-    and Character:FindFirstChildOfClass("Humanoid")
-task.wait(1)
-
-HRP = Character:FindFirstChild("HumanoidRootPart")
-
---------------------------------------------------
 -- DÉPENSER LES POINTS DE COMPÉTENCE
 --------------------------------------------------
 
