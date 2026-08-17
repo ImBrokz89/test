@@ -36,6 +36,20 @@ LocalPlayer.OnTeleport:Connect(function()
 end)
 
 --------------------------------------------------
+-- ATTENDRE LE SPAWN
+--------------------------------------------------
+
+repeat
+    task.wait(0.1)
+    Character = LocalPlayer.Character
+until Character
+    and Character:FindFirstChild("HumanoidRootPart")
+    and Character:FindFirstChildOfClass("Humanoid")
+task.wait(1)
+
+HRP = Character:FindFirstChild("HumanoidRootPart")
+
+--------------------------------------------------
 -- DÉPENSER LES POINTS DE COMPÉTENCE
 --------------------------------------------------
 
@@ -80,23 +94,16 @@ local DUNGEON_NAME = "Winter Outpost"
 local DUNGEON_DIFFICULTY = "Medium"
 
 --------------------------------------------------
--- FONCTION POUR DÉMARRER LE DONJON (CORRIGÉE)
+-- AUTO CREATE DUNGEON
 --------------------------------------------------
 
-local function StartDungeon()
-    print("🚀 Tentative de démarrage du donjon...")
-    
-    local LobbyRemotes = ReplicatedStorage:FindFirstChild("remotes")
-    if not LobbyRemotes then
-        print("❌ remotes introuvable")
-        return false
-    end
-    
-    -- Créer le lobby
+local LobbyRemotes = ReplicatedStorage:FindFirstChild("remotes")
+
+if LobbyRemotes then
     local CreateLobby = LobbyRemotes:FindFirstChild("createLobby")
     if CreateLobby then
-        local success, result = pcall(function()
-            return CreateLobby:InvokeServer(
+        pcall(function()
+            CreateLobby:InvokeServer(
                 DUNGEON_NAME,
                 DUNGEON_DIFFICULTY,
                 0,
@@ -105,85 +112,57 @@ local function StartDungeon()
                 false
             )
         end)
-        if success then
-            print("✅ Lobby créé avec succès")
-        else
-            print("❌ Erreur lors de la création du lobby:", result)
-            return false
-        end
-    else
-        print("❌ createLobby introuvable")
-        return false
     end
-    
-    task.wait(2)
-    
-    -- Démarrer le donjon
-    local StartDungeonRemote = LobbyRemotes:FindFirstChild("startDungeon")
-    if StartDungeonRemote then
-        pcall(function()
-            StartDungeonRemote:FireServer()
-            print("✅ Donjon démarré")
-        end)
-        return true
-    else
-        print("❌ startDungeon introuvable")
-        return false
+end
+
+task.wait(2)
+
+if LobbyRemotes then
+    local StartDungeon = LobbyRemotes:FindFirstChild("startDungeon")
+    if StartDungeon then
+        StartDungeon:FireServer()
     end
 end
 
 --------------------------------------------------
--- SURVEILLER LE BOUTON START
+-- VÉRIFIER ET DÉMARRER SI BOUTON START VISIBLE
 --------------------------------------------------
 
-local function CheckAndStart()
+local function CheckStartButton()
     local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
     if not PlayerGui then 
-        print("❌ PlayerGui introuvable")
         return false 
     end
     
-    -- Chercher le bouton START dans tous les ScreenGui
+    -- Chercher le bouton START
     local startButton = nil
     for _, gui in ipairs(PlayerGui:GetChildren()) do
         if gui:IsA("ScreenGui") then
             startButton = gui:FindFirstChild("startButton")
-            if startButton then
-                break
-            end
+            if startButton then break end
         end
     end
     
-    -- Si pas trouvé, chercher directement
     if not startButton then
         startButton = PlayerGui:FindFirstChild("startButton")
     end
     
     if not startButton then
-        print("ℹ️ startButton introuvable, le donjon est peut-être déjà démarré")
         return false
     end
     
-    -- Vérifier si le bouton est visible/activé
-    local isVisible = false
+    -- Vérifier si le bouton est visible/Enabled
+    local isActive = false
     if startButton:IsA("ScreenGui") then
-        isVisible = startButton.Enabled
+        isActive = startButton.Enabled
     elseif startButton:IsA("GuiObject") then
-        isVisible = startButton.Visible
+        isActive = startButton.Visible
     end
     
-    if isVisible then
-        print("🟢 Bouton START détecté et visible !")
+    -- Si le bouton est visible, lancer l'event
+    if isActive then
+        print("🟢 Bouton START visible ! Lancement de l'event...")
         
-        -- Cliquer sur le bouton (simuler un clic)
-        if startButton:IsA("TextButton") or startButton:IsA("ImageButton") then
-            pcall(function()
-                startButton:Click()
-                print("✅ Clic sur le bouton START effectué")
-            end)
-        end
-        
-        -- Alternativement, utiliser les remotes
         local Remotes = ReplicatedStorage:FindFirstChild("remotes")
         if Remotes then
             local ChangeStartValue = Remotes:FindFirstChild("changeStartValue")
@@ -195,47 +174,26 @@ local function CheckAndStart()
             end
         end
         
-        task.wait(2)
         return true
     else
-        print("🔴 Bouton START non visible ou désactivé")
         return false
     end
 end
 
+-- Vérifier une fois au début
+task.wait(1)
+CheckStartButton()
+
 --------------------------------------------------
--- BOUCLE DE SURVEILLANCE DU BOUTON START
+-- SURVEILLER EN BOUCLE LE BOUTON START
 --------------------------------------------------
 
 task.spawn(function()
-    print("👀 Surveillance du bouton START activée")
-    
     while true do
-        -- Si le donjon n'est pas encore démarré, vérifier le bouton
-        if not getgenv().DungeonStarted then
-            local started = CheckAndStart()
-            if started then
-                getgenv().DungeonStarted = true
-                print("✅ Donjon démarré via le bouton START")
-            end
-        end
-        task.wait(1) -- Vérifier toutes les secondes
+        CheckStartButton()
+        task.wait(0.5)
     end
 end)
-
---------------------------------------------------
--- AUTO CREATE DUNGEON (INITIAL)
---------------------------------------------------
-
-print("🏰 Tentative de création automatique du donjon...")
-local initialStart = StartDungeon()
-
-if initialStart then
-    getgenv().DungeonStarted = true
-    print("✅ Donjon créé et démarré automatiquement")
-else
-    print("⚠️ Échec de la création automatique, surveillance du bouton START activée")
-end
 
 --------------------------------------------------
 -- VARIABLES DE COMBAT
@@ -396,84 +354,17 @@ local function SlideTo(enemy, startPos)
 end
 
 --------------------------------------------------
--- START BUTTON (GESTION AMÉLIORÉE)
---------------------------------------------------
-
-local function HandleStartButton()
-    local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
-    if not PlayerGui then return end
-    
-    -- Chercher le startButton dans tous les ScreenGui
-    local startButton = nil
-    for _, gui in ipairs(PlayerGui:GetChildren()) do
-        if gui:IsA("ScreenGui") then
-            startButton = gui:FindFirstChild("startButton")
-            if startButton then
-                break
-            end
-        end
-    end
-    
-    if not startButton then
-        startButton = PlayerGui:FindFirstChild("startButton")
-    end
-    
-    if not startButton then return end
-    
-    local isEnabled = false
-    if startButton:IsA("ScreenGui") then
-        isEnabled = startButton.Enabled
-    elseif startButton:IsA("GuiObject") then
-        isEnabled = startButton.Visible
-    end
-    
-    if isEnabled then
-        print("🎯 Bouton START détecté, tentative de démarrage...")
-        
-        -- Essayer de cliquer
-        if startButton:IsA("TextButton") or startButton:IsA("ImageButton") then
-            pcall(function()
-                startButton:Click()
-            end)
-        end
-        
-        -- Envoyer les remotes
-        local Remotes = ReplicatedStorage:FindFirstChild("remotes")
-        if Remotes then
-            local ChangeStartValue = Remotes:FindFirstChild("changeStartValue")
-            if ChangeStartValue then
-                pcall(function()
-                    ChangeStartValue:FireServer()
-                end)
-            end
-        end
-        
-        getgenv().DungeonStarted = true
-        task.wait(5)
-        return true
-    end
-    
-    return false
-end
-
--- Exécuter une fois au début
-task.wait(1)
-HandleStartButton()
-
---------------------------------------------------
 -- SPELLS
 --------------------------------------------------
 
 task.spawn(function()
     local SpellsRemotes = ReplicatedStorage:FindFirstChild("remotes")
     if not SpellsRemotes then 
-        print("❌ Remotes introuvable pour les sorts")
         return 
     end
     
     local AbilityUsed = SpellsRemotes:FindFirstChild("abilityUsed")
     if not AbilityUsed then 
-        print("❌ abilityUsed introuvable")
         return 
     end
 
@@ -548,7 +439,6 @@ end)
 task.spawn(function()
     local skillPoints = LocalPlayer:FindFirstChild("skillPoints")
     if not skillPoints then 
-        print("❌ skillPoints introuvable pour la surveillance")
         return 
     end
     
@@ -559,48 +449,6 @@ task.spawn(function()
             SpendSkillPoints()
         end
     end)
-    
-    print("👀 Surveillance des points de compétence activée")
-end)
-
---------------------------------------------------
--- SURVEILLER L'APPARITION DU BOUTON START EN PERMANENCE
---------------------------------------------------
-
-task.spawn(function()
-    print("👀 Surveillance permanente du bouton START")
-    
-    while true do
-        if not getgenv().DungeonStarted then
-            local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
-            if PlayerGui then
-                -- Vérifier si un nouveau startButton est apparu
-                local startButton = nil
-                for _, gui in ipairs(PlayerGui:GetChildren()) do
-                    if gui:IsA("ScreenGui") then
-                        startButton = gui:FindFirstChild("startButton")
-                        if startButton then break end
-                    end
-                end
-                
-                if startButton then
-                    local isVisible = false
-                    if startButton:IsA("ScreenGui") then
-                        isVisible = startButton.Enabled
-                    elseif startButton:IsA("GuiObject") then
-                        isVisible = startButton.Visible
-                    end
-                    
-                    if isVisible then
-                        print("🔄 Bouton START réapparu ! Relance du démarrage...")
-                        HandleStartButton()
-                        getgenv().DungeonStarted = true
-                    end
-                end
-            end
-        end
-        task.wait(0.5)
-    end
 end)
 
 --------------------------------------------------
