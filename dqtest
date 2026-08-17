@@ -1,1 +1,425 @@
+if getgenv().ReinjectLoaded then return end
+getgenv().ReinjectLoaded = true
 
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local ScriptURL = "https://raw.githubusercontent.com/ImBrokz89/test/refs/heads/main/dqtest"
+
+local queue = queue_on_teleport 
+           or (syn and syn.queue_on_teleport) 
+           or (fluxus and fluxus.queue_on_teleport) 
+           or queueonteleport
+
+if not queue then
+    return
+end
+
+local TeleportQueued = false
+
+LocalPlayer.OnTeleport:Connect(function()
+    if TeleportQueued then return end
+    TeleportQueued = true
+
+    queue([[
+        repeat task.wait() until game:IsLoaded()
+        task.wait(2)
+        loadstring(game:HttpGet("]]..ScriptURL..[[", true))()
+    ]])
+end)
+
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local LocalPlayer = Players.LocalPlayer
+
+--------------------------------------------------
+-- DÉPENSER LES POINTS DE COMPÉTENCE (NOUVEAU)
+--------------------------------------------------
+
+-- Fonction pour dépenser les points de compétence automatiquement
+local function SpendSkillPoints()
+    local skillPoints = LocalPlayer:FindFirstChild("skillPoints")
+    if not skillPoints then 
+        print("❌ skillPoints introuvable")
+        return 
+    end
+    
+    -- Vérifier si on a des points à dépenser
+    if skillPoints.Value > 0 then
+        print("🔧 Dépense de " .. skillPoints.Value .. " points de compétence")
+        
+        local Event = ReplicatedStorage:FindFirstChild("remotes")
+        if Event then
+            local spendEvent = Event:FindFirstChild("spendSkillPoint")
+            if spendEvent then
+                -- Dépenser tous les points disponibles en physicalPower
+                for i = 1, skillPoints.Value do
+                    pcall(function()
+                        spendEvent:FireServer("physicalPower", 1)
+                        print("✅ Point de compétence dépensé (" .. i .. "/" .. skillPoints.Value .. ")")
+                    end)
+                    task.wait(0.1)  -- Petit délai entre chaque dépense
+                end
+            else
+                print("❌ spendSkillPoint introuvable")
+            end
+        end
+    else
+        print("ℹ️ Aucun point de compétence à dépenser")
+    end
+end
+
+-- Attendre un peu avant de dépenser les points
+task.wait(2)
+SpendSkillPoints()
+
+--------------------------------------------------
+-- CONFIG DUNGEON (MODIFIE ICI)
+--------------------------------------------------
+
+local DUNGEON_NAME = "Winter Outpost"
+local DUNGEON_DIFFICULTY = "Easy"
+
+--------------------------------------------------
+-- AUTO CREATE DUNGEON
+--------------------------------------------------
+
+local LobbyRemotes = ReplicatedStorage:FindFirstChild("remotes")
+
+if LobbyRemotes then
+    local CreateLobby = LobbyRemotes:FindFirstChild("createLobby")
+
+    if CreateLobby then
+        pcall(function()
+            CreateLobby:InvokeServer(
+                DUNGEON_NAME,
+                DUNGEON_DIFFICULTY,
+                0,
+                false,
+                false,
+                false
+            )
+        end)
+    end
+end
+
+task.wait(2)
+
+if LobbyRemotes then
+    local StartDungeon = LobbyRemotes:FindFirstChild("startDungeon")
+
+    if StartDungeon then
+        StartDungeon:FireServer()
+    end
+end
+
+local Offset = 5
+local SlideSpeed = 5
+local SwingDelay = 0.1
+local isAttacking = false
+
+--------------------------------------------------
+-- RÉCUPÉRER LES ENNEMIS
+--------------------------------------------------
+
+local function GetEnemies()
+    local enemies = {}
+    
+    for _, folder in ipairs(workspace:GetDescendants()) do
+        if folder:IsA("Folder") and folder.Name == "enemyFolder" then
+            for _, enemy in ipairs(folder:GetChildren()) do
+                if enemy:IsA("Model") then
+                    local humanoid = enemy:FindFirstChildOfClass("Humanoid")
+                    if humanoid and humanoid.Health > 0 then
+                        if enemy ~= LocalPlayer.Character then
+                            table.insert(enemies, enemy)
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    return enemies
+end
+
+--------------------------------------------------
+-- RÉCUPÉRER LE HRP
+--------------------------------------------------
+
+local function GetHRP(model)
+    if not model then return nil end
+    return model:FindFirstChild("HumanoidRootPart")
+        or model:FindFirstChild("Torso")
+        or model:FindFirstChild("UpperTorso")
+end
+
+--------------------------------------------------
+-- POSITIONNER LE PERSONNAGE
+--------------------------------------------------
+
+local function SetProne(pos, lookPos)
+    if not HRP or not HRP.Parent then return end
+
+    local direction = lookPos - pos
+    if direction.Magnitude <= 0.01 then return end
+
+    local look = direction.Unit
+    local up = Vector3.new(0, 1, 0)
+    
+    local cf = CFrame.lookAt(pos, pos + look, up)
+    
+    HRP.CFrame = cf
+    HRP.AssemblyLinearVelocity = Vector3.zero
+end
+
+--------------------------------------------------
+-- RÉCUPÉRER L'ARME ÉQUIPÉE
+--------------------------------------------------
+
+local function GetEquippedWeapon()
+    local weaponValue = LocalPlayer:FindFirstChild("weaponEquipped")
+    if not weaponValue then return nil end
+
+    if weaponValue:IsA("ObjectValue") then
+        return weaponValue.Value
+    end
+
+    if weaponValue:IsA("StringValue") then
+        local character = LocalPlayer.Character
+        if character then
+            return character:FindFirstChild(weaponValue.Value)
+        end
+    end
+
+    return nil
+end
+
+--------------------------------------------------
+-- ATTAQUE
+--------------------------------------------------
+
+local function SwingWeapon()
+    local weapon = GetEquippedWeapon()
+    if not weapon then return end
+
+    local swing = weapon:FindFirstChild("swing")
+    if swing and swing:IsA("RemoteEvent") then
+        swing:FireServer()
+    end
+end
+
+--------------------------------------------------
+-- SE DÉPLACER VERS L'ENNEMI
+--------------------------------------------------
+
+local function SlideTo(enemy, startPos)
+    local humanoid = enemy:FindFirstChildOfClass("Humanoid")
+    local enemyHRP = GetHRP(enemy)
+    
+    if not humanoid or humanoid.Health <= 0 then return end
+    if not enemyHRP then return end
+    if not HRP or not HRP.Parent then return end
+
+    local pos = startPos
+    local swingTimer = 0
+    local stuckTime = 0
+
+    while true do
+        if not HRP or not HRP.Parent then break end
+        
+        humanoid = enemy:FindFirstChildOfClass("Humanoid")
+        if not humanoid or humanoid.Health <= 0 then 
+            break
+        end
+        
+        enemyHRP = GetHRP(enemy)
+        if not enemyHRP then break end
+        
+        local targetPos = enemyHRP.Position + Vector3.new(0, Offset, 0)
+        local distance = (targetPos - pos).Magnitude
+        
+        local dt = RunService.Heartbeat:Wait()
+        
+        if distance > 0.5 then
+            pos = pos:Lerp(targetPos, 1 - math.exp(-SlideSpeed * dt))
+            stuckTime = 0
+        else
+            stuckTime = stuckTime + dt
+        end
+        
+        SetProne(pos, enemyHRP.Position)
+        
+        swingTimer = swingTimer + dt
+        if swingTimer >= SwingDelay then
+            SwingWeapon()
+            swingTimer = 0
+        end
+        
+        if stuckTime >= 5 then
+            break
+        end
+    end
+end
+
+--------------------------------------------------
+-- START BUTTON
+--------------------------------------------------
+
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local Starter = PlayerGui:FindFirstChild("startButton")
+
+if Starter then
+    local enabled = false
+    if Starter:IsA("ScreenGui") then
+        enabled = Starter.Enabled
+    elseif Starter:IsA("GuiObject") then
+        enabled = Starter.Visible
+    end
+
+    if enabled then
+        SwingWeapon()
+        local Remotes = ReplicatedStorage:FindFirstChild("remotes")
+        if Remotes then
+            local ChangeStartValue = Remotes:FindFirstChild("changeStartValue")
+            if ChangeStartValue then
+                ChangeStartValue:FireServer()
+            end
+        end
+        task.wait(5)
+    end
+end
+
+--------------------------------------------------
+-- SPELLS
+--------------------------------------------------
+
+task.spawn(function()
+    local SpellsRemotes = ReplicatedStorage:FindFirstChild("remotes")
+    if not SpellsRemotes then return end
+    
+    local AbilityUsed = SpellsRemotes:FindFirstChild("abilityUsed")
+    if not AbilityUsed then return end
+
+    local function GetSpellTools()
+        local spells = {}
+        local backpack = LocalPlayer:FindFirstChild("Backpack")
+        if not backpack then return spells end
+
+        for _, tool in ipairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") then
+                local abilitySlot = tool:FindFirstChild("abilitySlot")
+                local cooldown = tool:FindFirstChild("cooldown")
+                local spellEvent = tool:FindFirstChild("spellEvent")
+
+                if abilitySlot and cooldown and spellEvent then
+                    table.insert(spells, {
+                        Tool = tool,
+                        Slot = string.lower(tostring(abilitySlot.Value)),
+                        Cooldown = cooldown,
+                        SpellEvent = spellEvent
+                    })
+                end
+            end
+        end
+        return spells
+    end
+
+    local function IsReady(cooldown)
+        if not cooldown then return false end
+        local value = cooldown.Value
+        if cooldown:IsA("BoolValue") then
+            return value == false
+        end
+        if typeof(value) == "number" then
+            return value <= 0
+        end
+        return true
+    end
+
+    local function UseSpell(spell)
+        if not spell then return end
+        if not IsReady(spell.Cooldown) then return end
+        
+        local slot = spell.Slot
+        if slot ~= "q" and slot ~= "e" then return end
+        
+        local currentRemotes = ReplicatedStorage:FindFirstChild("remotes")
+        local currentAbility = currentRemotes and currentRemotes:FindFirstChild("abilityUsed")
+        
+        if currentAbility then
+            currentAbility:FireServer(slot, spell.Tool)
+        end
+        
+        if spell.SpellEvent and spell.SpellEvent:IsA("RemoteEvent") then
+            spell.SpellEvent:FireServer()
+        end
+    end
+
+    while true do
+        for _, spell in ipairs(GetSpellTools()) do
+            UseSpell(spell)
+        end
+        task.wait(0.1)
+    end
+end)
+
+--------------------------------------------------
+-- SURVEILLER L'ARRIVÉE DE NOUVEAUX POINTS (NOUVEAU)
+--------------------------------------------------
+
+task.spawn(function()
+    local skillPoints = LocalPlayer:FindFirstChild("skillPoints")
+    if not skillPoints then 
+        print("❌ skillPoints introuvable pour la surveillance")
+        return 
+    end
+    
+    -- Surveiller les changements de valeur
+    skillPoints:GetPropertyChangedSignal("Value"):Connect(function()
+        if skillPoints.Value > 0 then
+            print("🆕 Nouveaux points de compétence détectés !")
+            task.wait(0.5)  -- Attendre un peu avant de dépenser
+            SpendSkillPoints()
+        end
+    end)
+    
+    print("👀 Surveillance des points de compétence activée")
+end)
+
+--------------------------------------------------
+-- BOUCLE PRINCIPALE
+--------------------------------------------------
+
+while true do
+    Character = LocalPlayer.Character
+    if Character then
+        local newHRP = Character:FindFirstChild("HumanoidRootPart")
+        if newHRP then
+            HRP = newHRP
+        end
+    end
+    
+    if isAttacking then
+        task.wait(0.1)
+        continue
+    end
+    
+    local enemies = GetEnemies()
+    
+    for _, enemy in ipairs(enemies) do
+        local humanoid = enemy:FindFirstChildOfClass("Humanoid")
+        local enemyHRP = GetHRP(enemy)
+        
+        if humanoid and humanoid.Health > 0 and enemyHRP and HRP and HRP.Parent then
+            isAttacking = true
+            SlideTo(enemy, HRP.Position)
+            isAttacking = false
+        end
+    end
+    
+    task.wait(0.5)
+end
