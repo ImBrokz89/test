@@ -18,7 +18,7 @@ local queue = queue_on_teleport
            or queueonteleport
 
 if not queue then
-    print("❌ Queue on teleport non dispo")
+    print("❌ Queue on teleport non dispon")
     return
 end
 
@@ -102,7 +102,6 @@ local function IsInLobby()
     local introGui = playerGui:FindFirstChild("introGui")
     if not introGui then return false end
     
-    -- Vérifier si introGui est visible (ScreenGui.Enabled)
     if introGui:IsA("ScreenGui") then
         return introGui.Enabled
     end
@@ -118,7 +117,6 @@ local function IsStartButtonVisible()
     local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
     if not playerGui then return false end
     
-    -- Chercher le bouton START
     local startButton = nil
     for _, gui in ipairs(playerGui:GetChildren()) do
         if gui:IsA("ScreenGui") then
@@ -135,7 +133,6 @@ local function IsStartButtonVisible()
         return false
     end
     
-    -- Vérifier si le bouton est visible/Enabled
     if startButton:IsA("ScreenGui") then
         return startButton.Enabled
     elseif startButton:IsA("GuiObject") then
@@ -151,7 +148,7 @@ end
 
 print("🔍 Attente du lobby...")
 local waitTime = 0
-local maxWait = 30 -- Attendre max 30 secondes
+local maxWait = 30
 
 while not IsInLobby() and waitTime < maxWait do
     task.wait(1)
@@ -207,7 +204,7 @@ end
 local function WaitForStartButton()
     print("🔍 Attente du bouton START...")
     local waitTime = 0
-    local maxWait = 60 -- Attendre max 60 secondes
+    local maxWait = 60
     
     while not IsStartButtonVisible() and waitTime < maxWait do
         task.wait(0.5)
@@ -226,12 +223,7 @@ local function WaitForStartButton()
     end
 end
 
--- Attendre que le bouton START apparaisse
 local startButtonFound = WaitForStartButton()
-
---------------------------------------------------
--- LANCER L'EVENT START SI BOUTON VISIBLE
---------------------------------------------------
 
 if startButtonFound then
     print("🚀 Lancement de l'event START...")
@@ -246,12 +238,10 @@ if startButtonFound then
             end)
         end
     end
-else
-    print("❌ Bouton START non trouvé, impossible de lancer l'event")
 end
 
 --------------------------------------------------
--- SURVEILLER EN BOUCLE LE BOUTON START (MÊME SYSTÈME QUE introGui)
+-- SURVEILLER EN BOUCLE LE BOUTON START
 --------------------------------------------------
 
 task.spawn(function()
@@ -261,7 +251,6 @@ task.spawn(function()
     while true do
         local isVisible = IsStartButtonVisible()
         
-        -- Si le bouton devient visible
         if isVisible and not startButtonWasVisible then
             print("🟢 Bouton START détecté ! Lancement de l'event...")
             
@@ -279,7 +268,6 @@ task.spawn(function()
             startButtonWasVisible = true
         end
         
-        -- Si le bouton disparaît
         if not isVisible and startButtonWasVisible then
             print("🔴 Bouton START a disparu")
             startButtonWasVisible = false
@@ -311,7 +299,7 @@ task.spawn(function()
 end)
 
 --------------------------------------------------
--- SURVEILLER L'APPARITION DE introGui (REJOINDRE LE LOBBY)
+-- SURVEILLER L'APPARITION DE introGui
 --------------------------------------------------
 
 task.spawn(function()
@@ -321,13 +309,11 @@ task.spawn(function()
     while true do
         local isInLobby = IsInLobby()
         
-        -- Si le lobby devient actif
         if isInLobby and not lobbyWasActive then
             print("🔄 Lobby détecté (introGui visible) !")
             lobbyWasActive = true
         end
         
-        -- Si le lobby disparaît
         if not isInLobby and lobbyWasActive then
             print("🔴 Lobby a disparu (introGui caché)")
             lobbyWasActive = false
@@ -496,46 +482,64 @@ local function SlideTo(enemy, startPos)
 end
 
 --------------------------------------------------
--- SPELLS
+-- SPELLS (CORRIGÉ - CHECK abilitySlot DU TOOL ÉQUIPÉ)
 --------------------------------------------------
 
 task.spawn(function()
+    print("🔮 Initialisation des sorts...")
+    
     local SpellsRemotes = ReplicatedStorage:FindFirstChild("remotes")
     if not SpellsRemotes then 
+        print("❌ Remotes introuvable pour les sorts")
         return 
     end
     
     local AbilityUsed = SpellsRemotes:FindFirstChild("abilityUsed")
     if not AbilityUsed then 
+        print("❌ abilityUsed introuvable")
         return 
     end
 
     local function GetSpellTools()
         local spells = {}
         local backpack = LocalPlayer:FindFirstChild("Backpack")
-        if not backpack then return spells end
+        if not backpack then 
+            return spells 
+        end
 
         for _, tool in ipairs(backpack:GetChildren()) do
             if tool:IsA("Tool") then
+                -- Vérifier le abilitySlot du tool
                 local abilitySlot = tool:FindFirstChild("abilitySlot")
-                local cooldown = tool:FindFirstChild("cooldown")
-                local spellEvent = tool:FindFirstChild("spellEvent")
-
-                if abilitySlot and cooldown and spellEvent then
-                    table.insert(spells, {
-                        Tool = tool,
-                        Slot = string.lower(tostring(abilitySlot.Value)),
-                        Cooldown = cooldown,
-                        SpellEvent = spellEvent
-                    })
+                
+                if abilitySlot then
+                    local slot = string.lower(tostring(abilitySlot.Value))
+                    
+                    -- Vérifier si le slot est "q" ou "e"
+                    if slot == "q" or slot == "e" then
+                        local cooldown = tool:FindFirstChild("cooldown")
+                        local spellEvent = tool:FindFirstChild("spellEvent")
+                        
+                        table.insert(spells, {
+                            Tool = tool,
+                            Slot = slot,
+                            Cooldown = cooldown,
+                            SpellEvent = spellEvent,
+                            Name = tool.Name
+                        })
+                        print("🔮 Sort trouvé:", tool.Name, "| Slot:", slot)
+                    end
                 end
             end
         end
+        
+        print("📊 Total sorts trouvés (Q/E):", #spells)
         return spells
     end
 
     local function IsReady(cooldown)
-        if not cooldown then return false end
+        if not cooldown then return true end
+        
         local value = cooldown.Value
         if cooldown:IsA("BoolValue") then
             return value == false
@@ -548,29 +552,39 @@ task.spawn(function()
 
     local function UseSpell(spell)
         if not spell then return end
-        if not IsReady(spell.Cooldown) then return end
+        if not IsReady(spell.Cooldown) then 
+            return 
+        end
         
         local slot = spell.Slot
-        if slot ~= "q" and slot ~= "e" then return end
         
+        -- Utiliser abilityUsed avec le slot et le tool
         local currentRemotes = ReplicatedStorage:FindFirstChild("remotes")
         local currentAbility = currentRemotes and currentRemotes:FindFirstChild("abilityUsed")
         
         if currentAbility then
-            currentAbility:FireServer(slot, spell.Tool)
+            pcall(function()
+                currentAbility:FireServer(slot, spell.Tool)
+                print("⚡ Sort utilisé:", spell.Name, "| Slot:", slot)
+            end)
         end
         
+        -- Si le tool a un spellEvent, l'utiliser aussi
         if spell.SpellEvent and spell.SpellEvent:IsA("RemoteEvent") then
-            spell.SpellEvent:FireServer()
+            pcall(function()
+                spell.SpellEvent:FireServer()
+                print("⚡ SpellEvent utilisé:", spell.Name)
+            end)
         end
     end
 
+    -- Boucle principale des sorts
     while true do
         local spells = GetSpellTools()
         for _, spell in ipairs(spells) do
             UseSpell(spell)
         end
-        task.wait(0.1)
+        task.wait(0.15)
     end
 end)
 
