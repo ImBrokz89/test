@@ -18,7 +18,7 @@ local queue = queue_on_teleport
            or queueonteleport
 
 if not queue then
-    print("❌ Queue on teleport non disponible")
+    print("❌ Queue on teleport non dispo")
     return
 end
 
@@ -111,6 +111,41 @@ local function IsInLobby()
 end
 
 --------------------------------------------------
+-- VÉRIFIER SI LE BOUTON START EST VISIBLE
+--------------------------------------------------
+
+local function IsStartButtonVisible()
+    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+    if not playerGui then return false end
+    
+    -- Chercher le bouton START
+    local startButton = nil
+    for _, gui in ipairs(playerGui:GetChildren()) do
+        if gui:IsA("ScreenGui") then
+            startButton = gui:FindFirstChild("startButton")
+            if startButton then break end
+        end
+    end
+    
+    if not startButton then
+        startButton = playerGui:FindFirstChild("startButton")
+    end
+    
+    if not startButton then
+        return false
+    end
+    
+    -- Vérifier si le bouton est visible/Enabled
+    if startButton:IsA("ScreenGui") then
+        return startButton.Enabled
+    elseif startButton:IsA("GuiObject") then
+        return startButton.Visible
+    end
+    
+    return false
+end
+
+--------------------------------------------------
 -- ATTENDRE D'ÊTRE DANS LE LOBBY
 --------------------------------------------------
 
@@ -166,72 +201,90 @@ if LobbyRemotes then
 end
 
 --------------------------------------------------
--- VÉRIFIER ET DÉMARRER SI BOUTON START VISIBLE
+-- ATTENDRE QUE LE BOUTON START APPARAISSE
 --------------------------------------------------
 
-local function CheckStartButton()
-    local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
-    if not PlayerGui then 
-        return false 
-    end
+local function WaitForStartButton()
+    print("🔍 Attente du bouton START...")
+    local waitTime = 0
+    local maxWait = 60 -- Attendre max 60 secondes
     
-    -- Chercher le bouton START
-    local startButton = nil
-    for _, gui in ipairs(PlayerGui:GetChildren()) do
-        if gui:IsA("ScreenGui") then
-            startButton = gui:FindFirstChild("startButton")
-            if startButton then break end
+    while not IsStartButtonVisible() and waitTime < maxWait do
+        task.wait(0.5)
+        waitTime = waitTime + 0.5
+        if waitTime % 2 == 0 then
+            print("⏳ Attente du bouton START... (" .. waitTime .. "s)")
         end
     end
     
-    if not startButton then
-        startButton = PlayerGui:FindFirstChild("startButton")
-    end
-    
-    if not startButton then
-        return false
-    end
-    
-    -- Vérifier si le bouton est visible/Enabled
-    local isActive = false
-    if startButton:IsA("ScreenGui") then
-        isActive = startButton.Enabled
-    elseif startButton:IsA("GuiObject") then
-        isActive = startButton.Visible
-    end
-    
-    -- Si le bouton est visible, lancer l'event
-    if isActive then
-        print("🟢 Bouton START visible ! Lancement de l'event...")
-        
-        local Remotes = ReplicatedStorage:FindFirstChild("remotes")
-        if Remotes then
-            local ChangeStartValue = Remotes:FindFirstChild("changeStartValue")
-            if ChangeStartValue then
-                pcall(function()
-                    ChangeStartValue:FireServer()
-                    print("✅ changeStartValue envoyé")
-                end)
-            end
-        end
-        
+    if IsStartButtonVisible() then
+        print("✅ Bouton START détecté !")
         return true
     else
+        print("⚠️ Bouton START non détecté après " .. maxWait .. "s")
         return false
     end
 end
 
--- Vérifier une fois au début
-task.wait(1)
-CheckStartButton()
+-- Attendre que le bouton START apparaisse
+local startButtonFound = WaitForStartButton()
 
 --------------------------------------------------
--- SURVEILLER EN BOUCLE LE BOUTON START
+-- LANCER L'EVENT START SI BOUTON VISIBLE
+--------------------------------------------------
+
+if startButtonFound then
+    print("🚀 Lancement de l'event START...")
+    
+    local Remotes = ReplicatedStorage:FindFirstChild("remotes")
+    if Remotes then
+        local ChangeStartValue = Remotes:FindFirstChild("changeStartValue")
+        if ChangeStartValue then
+            pcall(function()
+                ChangeStartValue:FireServer()
+                print("✅ changeStartValue envoyé")
+            end)
+        end
+    end
+else
+    print("❌ Bouton START non trouvé, impossible de lancer l'event")
+end
+
+--------------------------------------------------
+-- SURVEILLER EN BOUCLE LE BOUTON START (MÊME SYSTÈME QUE introGui)
 --------------------------------------------------
 
 task.spawn(function()
+    print("👀 Surveillance du bouton START activée")
+    local startButtonWasVisible = false
+    
     while true do
-        CheckStartButton()
+        local isVisible = IsStartButtonVisible()
+        
+        -- Si le bouton devient visible
+        if isVisible and not startButtonWasVisible then
+            print("🟢 Bouton START détecté ! Lancement de l'event...")
+            
+            local Remotes = ReplicatedStorage:FindFirstChild("remotes")
+            if Remotes then
+                local ChangeStartValue = Remotes:FindFirstChild("changeStartValue")
+                if ChangeStartValue then
+                    pcall(function()
+                        ChangeStartValue:FireServer()
+                        print("✅ changeStartValue envoyé")
+                    end)
+                end
+            end
+            
+            startButtonWasVisible = true
+        end
+        
+        -- Si le bouton disparaît
+        if not isVisible and startButtonWasVisible then
+            print("🔴 Bouton START a disparu")
+            startButtonWasVisible = false
+        end
+        
         task.wait(0.5)
     end
 end)
@@ -254,6 +307,33 @@ task.spawn(function()
         print("👀 Surveillance des points de compétence activée")
     else
         print("❌ skillPoints introuvable pour la surveillance")
+    end
+end)
+
+--------------------------------------------------
+-- SURVEILLER L'APPARITION DE introGui (REJOINDRE LE LOBBY)
+--------------------------------------------------
+
+task.spawn(function()
+    print("👀 Surveillance du lobby (introGui) activée")
+    local lobbyWasActive = false
+    
+    while true do
+        local isInLobby = IsInLobby()
+        
+        -- Si le lobby devient actif
+        if isInLobby and not lobbyWasActive then
+            print("🔄 Lobby détecté (introGui visible) !")
+            lobbyWasActive = true
+        end
+        
+        -- Si le lobby disparaît
+        if not isInLobby and lobbyWasActive then
+            print("🔴 Lobby a disparu (introGui caché)")
+            lobbyWasActive = false
+        end
+        
+        task.wait(1)
     end
 end)
 
@@ -491,24 +571,6 @@ task.spawn(function()
             UseSpell(spell)
         end
         task.wait(0.1)
-    end
-end)
-
---------------------------------------------------
--- SURVEILLER L'APPARITION DE introGui (REJOINDRE LE LOBBY)
---------------------------------------------------
-
-task.spawn(function()
-    while true do
-        local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-        if playerGui then
-            local introGui = playerGui:FindFirstChild("introGui")
-            if introGui and introGui:IsA("ScreenGui") and introGui.Enabled then
-                print("🔄 Lobby détecté (introGui visible) !")
-                -- On pourrait relancer la création du donjon ici si besoin
-            end
-        end
-        task.wait(1)
     end
 end)
 
