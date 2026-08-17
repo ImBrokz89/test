@@ -18,7 +18,7 @@ local queue = queue_on_teleport
            or queueonteleport
 
 if not queue then
-    print("❌ Queue on teleport onible")
+    print("❌ Queue on teleport non disponible")
     return
 end
 
@@ -54,7 +54,8 @@ HRP = Character:FindFirstChild("HumanoidRootPart")
 --------------------------------------------------
 
 local function SpendSkillPoints()
-    local skillPoints = LocalPlayer:FindFirstChild("skillPoints")
+    local skillPoints = game:GetService("Players").LocalPlayer:FindFirstChild("skillPoints")
+    
     if not skillPoints then 
         print("❌ skillPoints introuvable")
         return 
@@ -63,20 +64,17 @@ local function SpendSkillPoints()
     if skillPoints.Value > 0 then
         print("🔧 Dépense de " .. skillPoints.Value .. " points de compétence")
         
-        local Event = ReplicatedStorage:FindFirstChild("remotes")
+        local Event = game:GetService("ReplicatedStorage").remotes:FindFirstChild("spendSkillPoint")
         if Event then
-            local spendEvent = Event:FindFirstChild("spendSkillPoint")
-            if spendEvent then
-                for i = 1, skillPoints.Value do
-                    pcall(function()
-                        spendEvent:FireServer("physicalPower", 1)
-                        print("✅ Point de compétence dépensé (" .. i .. "/" .. skillPoints.Value .. ")")
-                    end)
-                    task.wait(0.1)
-                end
-            else
-                print("❌ spendSkillPoint introuvable")
+            for i = 1, skillPoints.Value do
+                pcall(function()
+                    Event:FireServer("physicalPower", 1)
+                    print("✅ Point de compétence dépensé (" .. i .. "/" .. skillPoints.Value .. ")")
+                end)
+                task.wait(0.1)
             end
+        else
+            print("❌ spendSkillPoint introuvable")
         end
     else
         print("ℹ️ Aucun point de compétence à dépenser")
@@ -92,6 +90,45 @@ SpendSkillPoints()
 
 local DUNGEON_NAME = "Winter Outpost"
 local DUNGEON_DIFFICULTY = "Medium"
+
+--------------------------------------------------
+-- VÉRIFIER SI ON EST DANS LE LOBBY (introGui)
+--------------------------------------------------
+
+local function IsInLobby()
+    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+    if not playerGui then return false end
+    
+    local introGui = playerGui:FindFirstChild("introGui")
+    if not introGui then return false end
+    
+    -- Vérifier si introGui est visible (ScreenGui.Enabled)
+    if introGui:IsA("ScreenGui") then
+        return introGui.Enabled
+    end
+    
+    return false
+end
+
+--------------------------------------------------
+-- ATTENDRE D'ÊTRE DANS LE LOBBY
+--------------------------------------------------
+
+print("🔍 Attente du lobby...")
+local waitTime = 0
+local maxWait = 30 -- Attendre max 30 secondes
+
+while not IsInLobby() and waitTime < maxWait do
+    task.wait(1)
+    waitTime = waitTime + 1
+    print("⏳ Attente du lobby... (" .. waitTime .. "s)")
+end
+
+if IsInLobby() then
+    print("✅ Lobby détecté ! Création du donjon...")
+else
+    print("⚠️ Lobby non détecté après " .. maxWait .. "s, tentative de création quand même...")
+end
 
 --------------------------------------------------
 -- AUTO CREATE DUNGEON
@@ -111,6 +148,7 @@ if LobbyRemotes then
                 false,
                 false
             )
+            print("✅ Donjon créé avec succès")
         end)
     end
 end
@@ -120,7 +158,10 @@ task.wait(2)
 if LobbyRemotes then
     local StartDungeon = LobbyRemotes:FindFirstChild("startDungeon")
     if StartDungeon then
-        StartDungeon:FireServer()
+        pcall(function()
+            StartDungeon:FireServer()
+            print("✅ Donjon démarré")
+        end)
     end
 end
 
@@ -192,6 +233,27 @@ task.spawn(function()
     while true do
         CheckStartButton()
         task.wait(0.5)
+    end
+end)
+
+--------------------------------------------------
+-- SURVEILLER L'ARRIVÉE DE NOUVEAUX POINTS
+--------------------------------------------------
+
+task.spawn(function()
+    local skillPoints = game:GetService("Players").LocalPlayer:FindFirstChild("skillPoints")
+    
+    if skillPoints then
+        skillPoints:GetPropertyChangedSignal("Value"):Connect(function()
+            if skillPoints.Value > 0 then
+                print("🆕 Nouveaux points de compétence détectés :", skillPoints.Value)
+                task.wait(0.5)
+                SpendSkillPoints()
+            end
+        end)
+        print("👀 Surveillance des points de compétence activée")
+    else
+        print("❌ skillPoints introuvable pour la surveillance")
     end
 end)
 
@@ -433,22 +495,21 @@ task.spawn(function()
 end)
 
 --------------------------------------------------
--- SURVEILLER L'ARRIVÉE DE NOUVEAUX POINTS
+-- SURVEILLER L'APPARITION DE introGui (REJOINDRE LE LOBBY)
 --------------------------------------------------
 
 task.spawn(function()
-    local skillPoints = LocalPlayer:FindFirstChild("skillPoints")
-    if not skillPoints then 
-        return 
-    end
-    
-    skillPoints:GetPropertyChangedSignal("Value"):Connect(function()
-        if skillPoints.Value > 0 then
-            print("🆕 Nouveaux points de compétence détectés !")
-            task.wait(0.5)
-            SpendSkillPoints()
+    while true do
+        local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+        if playerGui then
+            local introGui = playerGui:FindFirstChild("introGui")
+            if introGui and introGui:IsA("ScreenGui") and introGui.Enabled then
+                print("🔄 Lobby détecté (introGui visible) !")
+                -- On pourrait relancer la création du donjon ici si besoin
+            end
         end
-    end)
+        task.wait(1)
+    end
 end)
 
 --------------------------------------------------
