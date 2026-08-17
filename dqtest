@@ -18,7 +18,7 @@ local queue = queue_on_teleport
            or queueonteleport
 
 if not queue then
-    print("❌ Queue on teleport non disponible")
+    print("❌ Queue on teleport onible")
     return
 end
 
@@ -50,12 +50,11 @@ task.wait(1)
 HRP = Character:FindFirstChild("HumanoidRootPart")
 
 --------------------------------------------------
--- DÉPENSER LES POINTS DE COMPÉTENCE (CORRIGÉ)
+-- DÉPENSER LES POINTS DE COMPÉTENCE
 --------------------------------------------------
 
 local function SpendSkillPoints()
-    local skillPoints = game:GetService("Players").LocalPlayer:FindFirstChild("skillPoints")
-    
+    local skillPoints = LocalPlayer:FindFirstChild("skillPoints")
     if not skillPoints then 
         print("❌ skillPoints introuvable")
         return 
@@ -64,17 +63,20 @@ local function SpendSkillPoints()
     if skillPoints.Value > 0 then
         print("🔧 Dépense de " .. skillPoints.Value .. " points de compétence")
         
-        local Event = game:GetService("ReplicatedStorage").remotes:FindFirstChild("spendSkillPoint")
+        local Event = ReplicatedStorage:FindFirstChild("remotes")
         if Event then
-            for i = 1, skillPoints.Value do
-                pcall(function()
-                    Event:FireServer("physicalPower", 1)
-                    print("✅ Point de compétence dépensé (" .. i .. "/" .. skillPoints.Value .. ")")
-                end)
-                task.wait(0.1)
+            local spendEvent = Event:FindFirstChild("spendSkillPoint")
+            if spendEvent then
+                for i = 1, skillPoints.Value do
+                    pcall(function()
+                        spendEvent:FireServer("physicalPower", 1)
+                        print("✅ Point de compétence dépensé (" .. i .. "/" .. skillPoints.Value .. ")")
+                    end)
+                    task.wait(0.1)
+                end
+            else
+                print("❌ spendSkillPoint introuvable")
             end
-        else
-            print("❌ spendSkillPoint introuvable")
         end
     else
         print("ℹ️ Aucun point de compétence à dépenser")
@@ -190,27 +192,6 @@ task.spawn(function()
     while true do
         CheckStartButton()
         task.wait(0.5)
-    end
-end)
-
---------------------------------------------------
--- SURVEILLER L'ARRIVÉE DE NOUVEAUX POINTS (CORRIGÉ)
---------------------------------------------------
-
-task.spawn(function()
-    local skillPoints = game:GetService("Players").LocalPlayer:FindFirstChild("skillPoints")
-    
-    if skillPoints then
-        skillPoints:GetPropertyChangedSignal("Value"):Connect(function()
-            if skillPoints.Value > 0 then
-                print("🆕 Nouveaux points de compétence détectés :", skillPoints.Value)
-                task.wait(0.5)
-                SpendSkillPoints()
-            end
-        end)
-        print("👀 Surveillance des points de compétence activée")
-    else
-        print("❌ skillPoints introuvable pour la surveillance")
     end
 end)
 
@@ -449,6 +430,25 @@ task.spawn(function()
         end
         task.wait(0.1)
     end
+end)
+
+--------------------------------------------------
+-- SURVEILLER L'ARRIVÉE DE NOUVEAUX POINTS
+--------------------------------------------------
+
+task.spawn(function()
+    local skillPoints = LocalPlayer:FindFirstChild("skillPoints")
+    if not skillPoints then 
+        return 
+    end
+    
+    skillPoints:GetPropertyChangedSignal("Value"):Connect(function()
+        if skillPoints.Value > 0 then
+            print("🆕 Nouveaux points de compétence détectés !")
+            task.wait(0.5)
+            SpendSkillPoints()
+        end
+    end)
 end)
 
 --------------------------------------------------
