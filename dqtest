@@ -89,7 +89,7 @@ SpendSkillPoints()
 --------------------------------------------------
 
 local DUNGEON_NAME = "Winter Outpost"
-local DUNGEON_DIFFICULTY = "Hard"
+local DUNGEON_DIFFICULTY = "Insane"
 
 --------------------------------------------------
 -- VÉRIFIER SI ON EST DANS LE LOBBY (introGui)
