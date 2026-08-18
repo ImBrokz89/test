@@ -19,7 +19,7 @@ local queue = queue_on_teleport
            or queueonteleport
 
 if not queue then
-    print("❌ Queue on teleport non dispo")
+    print("❌ Queue on teleport non dispon")
     return
 end
 
@@ -50,23 +50,16 @@ print("🎯 Place ID cible:", TARGET_PLACE_ID)
 -- VÉRIFIER SI ON EST DANS LA BONNE MAP
 --------------------------------------------------
 
-if currentPlaceId ~= TARGET_PLACE_ID then
-    print("❌ Place ID incorrect !")
+local canCreateDungeon = (currentPlaceId == TARGET_PLACE_ID)
+
+if canCreateDungeon then
+    print("✅ Place ID valide ! Création du donjon autorisée.")
+else
+    print("⚠️ Place ID différent, le script continue mais ne créera pas de donjon.")
     print("   Actuel:", currentPlaceId)
     print("   Attendu:", TARGET_PLACE_ID)
-    print("⛔ Le script ne créera pas de donjon.")
-    print("🔄 En attente du bon jeu...")
-    
-    while currentPlaceId ~= TARGET_PLACE_ID do
-        task.wait(5)
-        currentPlaceId = tostring(game.PlaceId)
-        print("🔄 Vérification... Place ID actuel:", currentPlaceId)
-    end
-    
-    print("✅ Place ID correct ! Le script continue...")
+    print("📌 Le script va quand même farmer les donjons existants.")
 end
-
-print("✅ Place ID valide, démarrage du script...")
 
 --------------------------------------------------
 -- FONCTIONS DE LECTURE/ÉCRITURE DE FICHIER
@@ -242,10 +235,15 @@ local function IsStartButtonVisible()
 end
 
 --------------------------------------------------
--- CRÉER LE DONJON
+-- CRÉER LE DONJON (SEULEMENT SI PLACE ID CORRECT)
 --------------------------------------------------
 
 local function CreateDungeon()
+    if not canCreateDungeon then
+        print("⏭️ Création de donjon ignorée (Place ID incorrect)")
+        return false
+    end
+    
     print("🚀 Création du donjon avec la configuration:")
     print("  📌 Nom:", Config.DUNGEON_NAME)
     print("  📌 Difficulté:", Config.DUNGEON_DIFFICULTY)
@@ -284,6 +282,11 @@ local function CreateDungeon()
 end
 
 local function StartDungeonRemote()
+    if not canCreateDungeon then
+        print("⏭️ Démarrage de donjon ignoré (Place ID incorrect)")
+        return false
+    end
+    
     print("🚀 Démarrage du donjon...")
     
     local LobbyRemotes = ReplicatedStorage:FindFirstChild("remotes")
@@ -307,31 +310,36 @@ local function StartDungeonRemote()
 end
 
 --------------------------------------------------
--- ATTENDRE LE LOBBY
+-- ATTENDRE LE LOBBY (SEULEMENT SI ON PEUT CRÉER)
 --------------------------------------------------
 
-print("🔍 Attente du lobby...")
-local waitTime = 0
-local maxWait = 10
+if canCreateDungeon then
+    print("🔍 Attente du lobby...")
+    local waitTime = 0
+    local maxWait = 10
 
-while not IsInLobby() and waitTime < maxWait do
-    task.wait(1)
-    waitTime = waitTime + 1
-    print("⏳ Attente du lobby... (" .. waitTime .. "s)")
-end
+    while not IsInLobby() and waitTime < maxWait do
+        task.wait(1)
+        waitTime = waitTime + 1
+        print("⏳ Attente du lobby... (" .. waitTime .. "s)")
+    end
 
-if IsInLobby() then
-    print("✅ Lobby détecté !")
+    if IsInLobby() then
+        print("✅ Lobby détecté !")
+    else
+        print("⚠️ Lobby non détecté après " .. maxWait .. "s, création quand même...")
+    end
+
+    CreateDungeon()
+    task.wait(2)
+    StartDungeonRemote()
 else
-    print("⚠️ Lobby non détecté après " .. maxWait .. "s, création quand même...")
+    print("⏭️ Étape de création du donjon sautée (Place ID incorrect)")
+    print("📌 Le script va directement farmer les donjons existants.")
 end
 
-CreateDungeon()
-task.wait(2)
-StartDungeonRemote()
-
 --------------------------------------------------
--- ATTENDRE LE BOUTON START
+-- ATTENDRE LE BOUTON START (SEULEMENT SI ON PEUT CRÉER)
 --------------------------------------------------
 
 local function WaitForStartButton()
@@ -356,21 +364,25 @@ local function WaitForStartButton()
     end
 end
 
-local startButtonFound = WaitForStartButton()
+if canCreateDungeon then
+    local startButtonFound = WaitForStartButton()
 
-if startButtonFound then
-    print("🚀 Lancement de l'event START...")
-    
-    local Remotes = ReplicatedStorage:FindFirstChild("remotes")
-    if Remotes then
-        local ChangeStartValue = Remotes:FindFirstChild("changeStartValue")
-        if ChangeStartValue then
-            pcall(function()
-                ChangeStartValue:FireServer()
-                print("✅ changeStartValue envoyé")
-            end)
+    if startButtonFound then
+        print("🚀 Lancement de l'event START...")
+        
+        local Remotes = ReplicatedStorage:FindFirstChild("remotes")
+        if Remotes then
+            local ChangeStartValue = Remotes:FindFirstChild("changeStartValue")
+            if ChangeStartValue then
+                pcall(function()
+                    ChangeStartValue:FireServer()
+                    print("✅ changeStartValue envoyé")
+                end)
+            end
         end
     end
+else
+    print("⏭️ Attente du bouton START sautée (Place ID incorrect)")
 end
 
 --------------------------------------------------
