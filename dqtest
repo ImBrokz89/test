@@ -19,7 +19,7 @@ local queue = queue_on_teleport
            or queueonteleport
 
 if not queue then
-    print("❌ Queue on teleport non disponnible")
+    print("❌ Queue on teleport non dispon")
     return
 end
 
@@ -35,6 +35,39 @@ LocalPlayer.OnTeleport:Connect(function()
         loadstring(game:HttpGet("]]..ScriptURL..[[", true))()
     ]])
 end)
+
+--------------------------------------------------
+-- RÉCUPÉRER LE GAME ID
+--------------------------------------------------
+
+local TARGET_GAME_ID = "9931749389" -- Le Game ID cible
+local currentGameId = tostring(game.GameId)
+
+print("🎮 Game ID actuel:", currentGameId)
+print("🎯 Game ID cible:", TARGET_GAME_ID)
+
+--------------------------------------------------
+-- VÉRIFIER SI ON EST DANS LA BONNE PARTIE
+--------------------------------------------------
+
+if currentGameId ~= TARGET_GAME_ID then
+    print("❌ Game ID incorrect !")
+    print("   Actuel:", currentGameId)
+    print("   Attendu:", TARGET_GAME_ID)
+    print("⛔ Le script ne créera pas de donjon.")
+    print("🔄 En attente du bon jeu...")
+    
+    -- Option: Attendre que le jeu change (si jamais)
+    while currentGameId ~= TARGET_GAME_ID do
+        task.wait(5)
+        currentGameId = tostring(game.GameId)
+        print("🔄 Vérification... Game ID actuel:", currentGameId)
+    end
+    
+    print("✅ Game ID correct ! Le script continue...")
+end
+
+print("✅ Game ID valide, démarrage du script...")
 
 --------------------------------------------------
 -- FONCTIONS DE LECTURE/ÉCRITURE DE FICHIER
@@ -63,18 +96,6 @@ local function WriteFile(filename, content)
 end
 
 --------------------------------------------------
--- RÉCUPÉRER LE GAME ID
---------------------------------------------------
-
-local function GetGameId()
-    local gameId = game.GameId
-    print("🎮 Game ID actuel:", gameId)
-    return gameId
-end
-
-local GAME_ID = GetGameId()
-
---------------------------------------------------
 -- ATTENDRE LE SPAWN
 --------------------------------------------------
 
@@ -92,32 +113,30 @@ HRP = Character:FindFirstChild("HumanoidRootPart")
 -- CHARGER OU CRÉER LA CONFIGURATION
 --------------------------------------------------
 
-local CONFIG_PATH = "config_" .. GAME_ID .. ".json"
+local CONFIG_PATH = "config_" .. currentGameId .. ".json"
 
 local DEFAULT_CONFIG = {
     dungeonName = "Winter Outpost",
     dungeonDifficulty = "Insane",
-    gameId = GAME_ID
+    gameId = currentGameId
 }
 
 local function LoadConfig()
     local config = {
         DUNGEON_NAME = DEFAULT_CONFIG.dungeonName,
         DUNGEON_DIFFICULTY = DEFAULT_CONFIG.dungeonDifficulty,
-        GAME_ID = GAME_ID
+        GAME_ID = currentGameId
     }
     
-    local configFile = "config_" .. GAME_ID .. ".json"
-    
-    if FileExists(configFile) then
-        local content = ReadFile(configFile)
+    if FileExists(CONFIG_PATH) then
+        local content = ReadFile(CONFIG_PATH)
         if content then
             local success, decoded = pcall(function()
                 return HttpService:JSONDecode(content)
             end)
             
             if success and decoded then
-                print("✅ Configuration chargée depuis", configFile)
+                print("✅ Configuration chargée depuis", CONFIG_PATH)
                 if decoded.dungeonName then config.DUNGEON_NAME = decoded.dungeonName end
                 if decoded.dungeonDifficulty then config.DUNGEON_DIFFICULTY = decoded.dungeonDifficulty end
                 print("  📌 Dungeon Name:", config.DUNGEON_NAME)
@@ -128,10 +147,10 @@ local function LoadConfig()
         end
     end
     
-    print("📝 Création du fichier", configFile, "...")
+    print("📝 Création du fichier", CONFIG_PATH, "...")
     local jsonString = HttpService:JSONEncode(DEFAULT_CONFIG)
-    WriteFile(configFile, jsonString)
-    print("✅ Fichier", configFile, "créé avec les valeurs par défaut")
+    WriteFile(CONFIG_PATH, jsonString)
+    print("✅ Fichier", CONFIG_PATH, "créé avec les valeurs par défaut")
     print("  📌 Dungeon Name:", config.DUNGEON_NAME)
     print("  📌 Dungeon Difficulty:", config.DUNGEON_DIFFICULTY)
     print("  📌 Game ID:", config.GAME_ID)
