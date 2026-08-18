@@ -5,6 +5,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
+local HttpService = game:GetService("HttpService")
 
 -- 🔧 Déclaration des variables globales
 local Character = nil
@@ -36,6 +37,32 @@ LocalPlayer.OnTeleport:Connect(function()
 end)
 
 --------------------------------------------------
+-- FONCTIONS DE LECTURE/ÉCRITURE DE FICHIER
+--------------------------------------------------
+
+local function FileExists(filename)
+    if isfile then
+        return isfile(filename)
+    end
+    return false
+end
+
+local function ReadFile(filename)
+    if isfile then
+        return readfile(filename)
+    end
+    return nil
+end
+
+local function WriteFile(filename, content)
+    if writefile then
+        writefile(filename, content)
+        return true
+    end
+    return false
+end
+
+--------------------------------------------------
 -- ATTENDRE LE SPAWN
 --------------------------------------------------
 
@@ -48,6 +75,85 @@ until Character
 task.wait(1)
 
 HRP = Character:FindFirstChild("HumanoidRootPart")
+
+--------------------------------------------------
+-- CHARGER OU CRÉER LA CONFIGURATION
+--------------------------------------------------
+
+local CONFIG_PATH = "config.json"
+
+-- Configuration par défaut (utilisée si fichier introuvable)
+local DEFAULT_CONFIG = {
+    dungeonName = "Winter Outpost",
+    dungeonDifficulty = "Insane"
+}
+
+local function CreateDefaultConfig()
+    print("📝 Création du fichier config.json par défaut...")
+    
+    local jsonString = HttpService:JSONEncode(DEFAULT_CONFIG)
+    
+    local success = WriteFile(CONFIG_PATH, jsonString)
+    
+    if success then
+        print("✅ Fichier config.json créé avec succès!")
+        print("  📌 Dungeon Name:", DEFAULT_CONFIG.dungeonName)
+        print("  📌 Dungeon Difficulty:", DEFAULT_CONFIG.dungeonDifficulty)
+        return true
+    else
+        print("⚠️ Impossible de créer le fichier, utilisation des valeurs par défaut")
+        return false
+    end
+end
+
+local function LoadConfig()
+    -- Valeurs par défaut
+    local config = {
+        DUNGEON_NAME = DEFAULT_CONFIG.dungeonName,
+        DUNGEON_DIFFICULTY = DEFAULT_CONFIG.dungeonDifficulty
+    }
+    
+    -- Essayer de lire le fichier
+    if FileExists(CONFIG_PATH) then
+        local content = ReadFile(CONFIG_PATH)
+        if content then
+            local success, decoded = pcall(function()
+                return HttpService:JSONDecode(content)
+            end)
+            
+            if success and decoded then
+                print("✅ Configuration chargée depuis config.json")
+                
+                if decoded.dungeonName then
+                    config.DUNGEON_NAME = decoded.dungeonName
+                end
+                
+                if decoded.dungeonDifficulty then
+                    config.DUNGEON_DIFFICULTY = decoded.dungeonDifficulty
+                end
+                
+                print("  📌 Dungeon Name:", config.DUNGEON_NAME)
+                print("  📌 Dungeon Difficulty:", config.DUNGEON_DIFFICULTY)
+                return config
+            else
+                print("⚠️ Erreur de lecture du JSON, utilisation des valeurs par défaut")
+            end
+        end
+    end
+    
+    -- Si le fichier n'existe pas ou est corrompu, le créer
+    print("📝 Création du fichier config.json...")
+    local jsonString = HttpService:JSONEncode(DEFAULT_CONFIG)
+    WriteFile(CONFIG_PATH, jsonString)
+    print("✅ Fichier config.json créé avec les valeurs par défaut")
+    print("  📌 Dungeon Name:", config.DUNGEON_NAME)
+    print("  📌 Dungeon Difficulty:", config.DUNGEON_DIFFICULTY)
+    
+    return config
+end
+
+-- Charger la configuration
+local Config = LoadConfig()
 
 --------------------------------------------------
 -- DÉPENSER LES POINTS DE COMPÉTENCE
@@ -83,13 +189,6 @@ end
 
 task.wait(2)
 SpendSkillPoints()
-
---------------------------------------------------
--- CONFIG DUNGEON
---------------------------------------------------
-
-local DUNGEON_NAME = "Winter Outpost"
-local DUNGEON_DIFFICULTY = "Insane"
 
 --------------------------------------------------
 -- VÉRIFIER SI ON EST DANS LE LOBBY (introGui)
@@ -143,12 +242,76 @@ local function IsStartButtonVisible()
 end
 
 --------------------------------------------------
--- ATTENDRE D'ÊTRE DANS LE LOBBY
+-- CRÉER LE DONJON (FONCTION PRINCIPALE)
+--------------------------------------------------
+
+local function CreateDungeon()
+    print("🚀 Création du donjon avec la configuration:")
+    print("  📌 Nom:", Config.DUNGEON_NAME)
+    print("  📌 Difficulté:", Config.DUNGEON_DIFFICULTY)
+    
+    local LobbyRemotes = ReplicatedStorage:FindFirstChild("remotes")
+    if not LobbyRemotes then
+        print("❌ remotes introuvable")
+        return false
+    end
+    
+    local CreateLobby = LobbyRemotes:FindFirstChild("createLobby")
+    if not CreateLobby then
+        print("❌ createLobby introuvable")
+        return false
+    end
+    
+    local success, result = pcall(function()
+        return CreateLobby:InvokeServer(
+            Config.DUNGEON_NAME,
+            Config.DUNGEON_DIFFICULTY,
+            0,
+            false,
+            false,
+            false
+        )
+    end)
+    
+    if success then
+        print("✅ Donjon créé avec succès")
+        return true
+    else
+        print("❌ Erreur lors de la création du donjon:", result)
+        return false
+    end
+end
+
+local function StartDungeon()
+    print("🚀 Démarrage du donjon...")
+    
+    local LobbyRemotes = ReplicatedStorage:FindFirstChild("remotes")
+    if not LobbyRemotes then
+        print("❌ remotes introuvable")
+        return false
+    end
+    
+    local StartDungeonRemote = LobbyRemotes:FindFirstChild("startDungeon")
+    if not StartDungeonRemote then
+        print("❌ startDungeon introuvable")
+        return false
+    end
+    
+    pcall(function()
+        StartDungeonRemote:FireServer()
+        print("✅ Donjon démarré")
+    end)
+    
+    return true
+end
+
+--------------------------------------------------
+-- ATTENDRE D'ÊTRE DANS LE LOBBY OU CRÉER QUAND MÊME
 --------------------------------------------------
 
 print("🔍 Attente du lobby...")
 local waitTime = 0
-local maxWait = 30
+local maxWait = 10 -- Réduit à 10 secondes pour ne pas trop attendre
 
 while not IsInLobby() and waitTime < maxWait do
     task.wait(1)
@@ -157,45 +320,43 @@ while not IsInLobby() and waitTime < maxWait do
 end
 
 if IsInLobby() then
-    print("✅ Lobby détecté ! Création du donjon...")
+    print("✅ Lobby détecté !")
 else
-    print("⚠️ Lobby non détecté après " .. maxWait .. "s, tentative de création quand même...")
+    print("⚠️ Lobby non détecté après " .. maxWait .. "s, création quand même...")
 end
 
 --------------------------------------------------
 -- AUTO CREATE DUNGEON
 --------------------------------------------------
 
-local LobbyRemotes = ReplicatedStorage:FindFirstChild("remotes")
+-- Créer le donjon
+local dungeonCreated = CreateDungeon()
 
-if LobbyRemotes then
-    local CreateLobby = LobbyRemotes:FindFirstChild("createLobby")
-    if CreateLobby then
-        pcall(function()
-            CreateLobby:InvokeServer(
-                DUNGEON_NAME,
-                DUNGEON_DIFFICULTY,
-                0,
-                false,
-                false,
-                false
-            )
-            print("✅ Donjon créé avec succès")
-        end)
-    end
+if not dungeonCreated then
+    print("⚠️ La création du donjon a échoué, tentative avec les valeurs par défaut...")
+    -- Sauvegarder les valeurs actuelles
+    local oldName = Config.DUNGEON_NAME
+    local oldDiff = Config.DUNGEON_DIFFICULTY
+    
+    -- Utiliser les valeurs par défaut
+    Config.DUNGEON_NAME = DEFAULT_CONFIG.dungeonName
+    Config.DUNGEON_DIFFICULTY = DEFAULT_CONFIG.dungeonDifficulty
+    
+    print("🔄 Nouvelle tentative avec:")
+    print("  📌 Nom:", Config.DUNGEON_NAME)
+    print("  📌 Difficulté:", Config.DUNGEON_DIFFICULTY)
+    
+    CreateDungeon()
+    
+    -- Restaurer les valeurs
+    Config.DUNGEON_NAME = oldName
+    Config.DUNGEON_DIFFICULTY = oldDiff
 end
 
 task.wait(2)
 
-if LobbyRemotes then
-    local StartDungeon = LobbyRemotes:FindFirstChild("startDungeon")
-    if StartDungeon then
-        pcall(function()
-            StartDungeon:FireServer()
-            print("✅ Donjon démarré")
-        end)
-    end
-end
+-- Démarrer le donjon
+StartDungeon()
 
 --------------------------------------------------
 -- ATTENDRE QUE LE BOUTON START APPARAISSE
@@ -235,6 +396,19 @@ if startButtonFound then
             pcall(function()
                 ChangeStartValue:FireServer()
                 print("✅ changeStartValue envoyé")
+            end)
+        end
+    end
+else
+    print("⚠️ Bouton START non trouvé, tentative de démarrage alternatif...")
+    -- Essayer de démarrer directement
+    local Remotes = ReplicatedStorage:FindFirstChild("remotes")
+    if Remotes then
+        local StartDungeonRemote = Remotes:FindFirstChild("startDungeon")
+        if StartDungeonRemote then
+            pcall(function()
+                StartDungeonRemote:FireServer()
+                print("✅ startDungeon envoyé (alternatif)")
             end)
         end
     end
@@ -482,7 +656,7 @@ local function SlideTo(enemy, startPos)
 end
 
 --------------------------------------------------
--- SPELLS (CORRIGÉ - CHECK abilitySlot DU TOOL ÉQUIPÉ)
+-- SPELLS
 --------------------------------------------------
 
 task.spawn(function()
@@ -509,13 +683,11 @@ task.spawn(function()
 
         for _, tool in ipairs(backpack:GetChildren()) do
             if tool:IsA("Tool") then
-                -- Vérifier le abilitySlot du tool
                 local abilitySlot = tool:FindFirstChild("abilitySlot")
                 
                 if abilitySlot then
                     local slot = string.lower(tostring(abilitySlot.Value))
                     
-                    -- Vérifier si le slot est "q" ou "e"
                     if slot == "q" or slot == "e" then
                         local cooldown = tool:FindFirstChild("cooldown")
                         local spellEvent = tool:FindFirstChild("spellEvent")
@@ -558,7 +730,6 @@ task.spawn(function()
         
         local slot = spell.Slot
         
-        -- Utiliser abilityUsed avec le slot et le tool
         local currentRemotes = ReplicatedStorage:FindFirstChild("remotes")
         local currentAbility = currentRemotes and currentRemotes:FindFirstChild("abilityUsed")
         
@@ -569,7 +740,6 @@ task.spawn(function()
             end)
         end
         
-        -- Si le tool a un spellEvent, l'utiliser aussi
         if spell.SpellEvent and spell.SpellEvent:IsA("RemoteEvent") then
             pcall(function()
                 spell.SpellEvent:FireServer()
@@ -578,7 +748,6 @@ task.spawn(function()
         end
     end
 
-    -- Boucle principale des sorts
     while true do
         local spells = GetSpellTools()
         for _, spell in ipairs(spells) do
