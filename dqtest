@@ -19,7 +19,7 @@ local queue = queue_on_teleport
            or queueonteleport
 
 if not queue then
-    print("❌ Queue on teleport non dispon")
+    print("❌ Queue on teleport non dispo")
     return
 end
 
@@ -37,37 +37,36 @@ LocalPlayer.OnTeleport:Connect(function()
 end)
 
 --------------------------------------------------
--- RÉCUPÉRER LE GAME ID
+-- RÉCUPÉRER LE PLACE ID
 --------------------------------------------------
 
-local TARGET_GAME_ID = "9931749389" -- Le Game ID cible
-local currentGameId = tostring(game.GameId)
+local TARGET_PLACE_ID = "77649408247578" -- Le Place ID cible
+local currentPlaceId = tostring(game.PlaceId)
 
-print("🎮 Game ID actuel:", currentGameId)
-print("🎯 Game ID cible:", TARGET_GAME_ID)
+print("📍 Place ID actuel:", currentPlaceId)
+print("🎯 Place ID cible:", TARGET_PLACE_ID)
 
 --------------------------------------------------
--- VÉRIFIER SI ON EST DANS LA BONNE PARTIE
+-- VÉRIFIER SI ON EST DANS LA BONNE MAP
 --------------------------------------------------
 
-if currentGameId ~= TARGET_GAME_ID then
-    print("❌ Game ID incorrect !")
-    print("   Actuel:", currentGameId)
-    print("   Attendu:", TARGET_GAME_ID)
+if currentPlaceId ~= TARGET_PLACE_ID then
+    print("❌ Place ID incorrect !")
+    print("   Actuel:", currentPlaceId)
+    print("   Attendu:", TARGET_PLACE_ID)
     print("⛔ Le script ne créera pas de donjon.")
     print("🔄 En attente du bon jeu...")
     
-    -- Option: Attendre que le jeu change (si jamais)
-    while currentGameId ~= TARGET_GAME_ID do
+    while currentPlaceId ~= TARGET_PLACE_ID do
         task.wait(5)
-        currentGameId = tostring(game.GameId)
-        print("🔄 Vérification... Game ID actuel:", currentGameId)
+        currentPlaceId = tostring(game.PlaceId)
+        print("🔄 Vérification... Place ID actuel:", currentPlaceId)
     end
     
-    print("✅ Game ID correct ! Le script continue...")
+    print("✅ Place ID correct ! Le script continue...")
 end
 
-print("✅ Game ID valide, démarrage du script...")
+print("✅ Place ID valide, démarrage du script...")
 
 --------------------------------------------------
 -- FONCTIONS DE LECTURE/ÉCRITURE DE FICHIER
@@ -113,19 +112,19 @@ HRP = Character:FindFirstChild("HumanoidRootPart")
 -- CHARGER OU CRÉER LA CONFIGURATION
 --------------------------------------------------
 
-local CONFIG_PATH = "config_" .. currentGameId .. ".json"
+local CONFIG_PATH = "config_" .. currentPlaceId .. ".json"
 
 local DEFAULT_CONFIG = {
     dungeonName = "Winter Outpost",
     dungeonDifficulty = "Insane",
-    gameId = currentGameId
+    placeId = currentPlaceId
 }
 
 local function LoadConfig()
     local config = {
         DUNGEON_NAME = DEFAULT_CONFIG.dungeonName,
         DUNGEON_DIFFICULTY = DEFAULT_CONFIG.dungeonDifficulty,
-        GAME_ID = currentGameId
+        PLACE_ID = currentPlaceId
     }
     
     if FileExists(CONFIG_PATH) then
@@ -141,7 +140,7 @@ local function LoadConfig()
                 if decoded.dungeonDifficulty then config.DUNGEON_DIFFICULTY = decoded.dungeonDifficulty end
                 print("  📌 Dungeon Name:", config.DUNGEON_NAME)
                 print("  📌 Dungeon Difficulty:", config.DUNGEON_DIFFICULTY)
-                print("  📌 Game ID:", config.GAME_ID)
+                print("  📌 Place ID:", config.PLACE_ID)
                 return config
             end
         end
@@ -153,7 +152,7 @@ local function LoadConfig()
     print("✅ Fichier", CONFIG_PATH, "créé avec les valeurs par défaut")
     print("  📌 Dungeon Name:", config.DUNGEON_NAME)
     print("  📌 Dungeon Difficulty:", config.DUNGEON_DIFFICULTY)
-    print("  📌 Game ID:", config.GAME_ID)
+    print("  📌 Place ID:", config.PLACE_ID)
     
     return config
 end
@@ -250,7 +249,7 @@ local function CreateDungeon()
     print("🚀 Création du donjon avec la configuration:")
     print("  📌 Nom:", Config.DUNGEON_NAME)
     print("  📌 Difficulté:", Config.DUNGEON_DIFFICULTY)
-    print("  📌 Game ID:", Config.GAME_ID)
+    print("  📌 Place ID:", Config.PLACE_ID)
     
     local LobbyRemotes = ReplicatedStorage:FindFirstChild("remotes")
     if not LobbyRemotes then
