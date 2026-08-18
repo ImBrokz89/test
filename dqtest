@@ -19,7 +19,7 @@ local queue = queue_on_teleport
            or queueonteleport
 
 if not queue then
-    print("❌ Queue on teleport non dispon")
+    print("❌ Queue on teleport non disponnible")
     return
 end
 
@@ -82,7 +82,6 @@ HRP = Character:FindFirstChild("HumanoidRootPart")
 
 local CONFIG_PATH = "config.json"
 
--- Configuration par défaut
 local DEFAULT_CONFIG = {
     dungeonName = "Winter Outpost",
     dungeonDifficulty = "Insane"
@@ -112,7 +111,6 @@ local function LoadConfig()
         end
     end
     
-    -- Créer le fichier par défaut
     print("📝 Création du fichier config.json...")
     local jsonString = HttpService:JSONEncode(DEFAULT_CONFIG)
     WriteFile(CONFIG_PATH, jsonString)
@@ -161,7 +159,7 @@ task.wait(2)
 SpendSkillPoints()
 
 --------------------------------------------------
--- VÉRIFIER SI ON EST DANS LE LOBBY (introGui)
+-- VÉRIFIER SI ON EST DANS LE LOBBY
 --------------------------------------------------
 
 local function IsInLobby()
@@ -177,10 +175,6 @@ local function IsInLobby()
     
     return false
 end
-
---------------------------------------------------
--- VÉRIFIER SI LE BOUTON START EST VISIBLE
---------------------------------------------------
 
 local function IsStartButtonVisible()
     local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
@@ -276,7 +270,7 @@ local function StartDungeonRemote()
 end
 
 --------------------------------------------------
--- ATTENDRE LE LOBBY OU CRÉER QUAND MÊME
+-- ATTENDRE LE LOBBY
 --------------------------------------------------
 
 print("🔍 Attente du lobby...")
@@ -295,7 +289,6 @@ else
     print("⚠️ Lobby non détecté après " .. maxWait .. "s, création quand même...")
 end
 
--- Créer et démarrer le donjon
 CreateDungeon()
 task.wait(2)
 StartDungeonRemote()
@@ -344,7 +337,7 @@ if startButtonFound then
 end
 
 --------------------------------------------------
--- SURVEILLER EN BOUCLE LE BOUTON START
+-- SURVEILLANCES
 --------------------------------------------------
 
 task.spawn(function()
@@ -380,10 +373,6 @@ task.spawn(function()
     end
 end)
 
---------------------------------------------------
--- SURVEILLER L'ARRIVÉE DE NOUVEAUX POINTS
---------------------------------------------------
-
 task.spawn(function()
     local skillPoints = game:GetService("Players").LocalPlayer:FindFirstChild("skillPoints")
     
@@ -396,14 +385,8 @@ task.spawn(function()
             end
         end)
         print("👀 Surveillance des points de compétence activée")
-    else
-        print("❌ skillPoints introuvable pour la surveillance")
     end
 end)
-
---------------------------------------------------
--- SURVEILLER L'APPARITION DE introGui
---------------------------------------------------
 
 task.spawn(function()
     print("👀 Surveillance du lobby (introGui) activée")
@@ -431,7 +414,6 @@ end)
 --------------------------------------------------
 
 local Offset = 5
-local SlideSpeed = 5
 local SwingDelay = 0.1
 local isAttacking = false
 
@@ -472,7 +454,7 @@ local function GetHRP(model)
 end
 
 --------------------------------------------------
--- POSITIONNER LE PERSONNAGE
+-- POSITIONNER LE PERSONNAGE (AVEC MOUVEMENT NATUREL)
 --------------------------------------------------
 
 local function SetProne(pos, lookPos)
@@ -531,7 +513,7 @@ local function SwingWeapon()
 end
 
 --------------------------------------------------
--- SE DÉPLACER VERS L'ENNEMI
+-- SE DÉPLACER VERS L'ENNEMI (AVEC WALKSPEED RÉEL)
 --------------------------------------------------
 
 local function SlideTo(enemy, startPos)
@@ -542,14 +524,27 @@ local function SlideTo(enemy, startPos)
     if not enemyHRP then return end
     if not HRP or not HRP.Parent then return end
 
+    -- Récupérer le Humanoid du joueur
+    local playerHumanoid = Character:FindFirstChildOfClass("Humanoid")
+    if not playerHumanoid then return end
+    
+    -- Utiliser le WalkSpeed réel du joueur
+    local walkSpeed = playerHumanoid.WalkSpeed
+    if walkSpeed < 10 then
+        walkSpeed = 16 -- Valeur par défaut de Roblox
+    end
+
     local pos = startPos
     local swingTimer = 0
     local stuckTime = 0
     local heartbeat = RunService.Heartbeat
+    
+    print("🏃 WalkSpeed utilisé:", walkSpeed)
 
     while true do
         if not HRP or not HRP.Parent then break end
         
+        -- Vérifier si l'ennemi est toujours vivant
         humanoid = enemy:FindFirstChildOfClass("Humanoid")
         if not humanoid or humanoid.Health <= 0 then 
             break
@@ -563,8 +558,12 @@ local function SlideTo(enemy, startPos)
         
         local dt = heartbeat:Wait()
         
+        -- Déplacement avec la vitesse réelle
         if distance > 0.5 then
-            pos = pos:Lerp(targetPos, 1 - math.exp(-SlideSpeed * dt))
+            -- Calculer le pas de déplacement basé sur le WalkSpeed
+            local speed = walkSpeed * 2.2 -- Multiplicateur pour fluidité
+            local step = math.min(1, speed * dt / distance)
+            pos = pos:Lerp(targetPos, step)
             stuckTime = 0
         else
             stuckTime = stuckTime + dt
@@ -572,6 +571,7 @@ local function SlideTo(enemy, startPos)
         
         SetProne(pos, enemyHRP.Position)
         
+        -- Attaque automatique
         swingTimer = swingTimer + dt
         if swingTimer >= SwingDelay then
             SwingWeapon()
@@ -585,7 +585,7 @@ local function SlideTo(enemy, startPos)
 end
 
 --------------------------------------------------
--- SPELLS (CORRIGÉ - UTILISE abilityEvent)
+-- SPELLS
 --------------------------------------------------
 
 task.spawn(function()
@@ -644,16 +644,10 @@ task.spawn(function()
             return 
         end
         
-        -- Utiliser abilityEvent directement depuis le tool
         if spell.AbilityEvent and spell.AbilityEvent:IsA("RemoteEvent") then
             pcall(function()
                 spell.AbilityEvent:FireServer()
                 print("⚡ Sort utilisé:", spell.Name, "| Slot:", spell.Slot)
-            end)
-        elseif spell.AbilityEvent and spell.AbilityEvent:IsA("RemoteFunction") then
-            pcall(function()
-                spell.AbilityEvent:InvokeServer()
-                print("⚡ Sort utilisé (RemoteFunction):", spell.Name, "| Slot:", spell.Slot)
             end)
         end
     end
@@ -672,7 +666,6 @@ end)
 --------------------------------------------------
 
 while true do
-    -- Mettre à jour le personnage
     local currentChar = LocalPlayer.Character
     if currentChar then
         Character = currentChar
@@ -682,7 +675,6 @@ while true do
         end
     end
     
-    -- Ne pas attaquer si déjà en cours ou si HRP est nil
     if isAttacking or not HRP or not HRP.Parent then
         task.wait(0.5)
         continue
