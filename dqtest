@@ -19,7 +19,7 @@ local queue = queue_on_teleport
            or queueonteleport
 
 if not queue then
-    print("❌ Queue on teleport non dispon")
+    print("❌ Queue on teleport non disponnible")
     return
 end
 
@@ -63,6 +63,18 @@ local function WriteFile(filename, content)
 end
 
 --------------------------------------------------
+-- RÉCUPÉRER LE GAME ID
+--------------------------------------------------
+
+local function GetGameId()
+    local gameId = game.GameId
+    print("🎮 Game ID actuel:", gameId)
+    return gameId
+end
+
+local GAME_ID = GetGameId()
+
+--------------------------------------------------
 -- ATTENDRE LE SPAWN
 --------------------------------------------------
 
@@ -80,45 +92,49 @@ HRP = Character:FindFirstChild("HumanoidRootPart")
 -- CHARGER OU CRÉER LA CONFIGURATION
 --------------------------------------------------
 
-local CONFIG_PATH = "config.json"
+local CONFIG_PATH = "config_" .. GAME_ID .. ".json"
 
--- Configuration par défaut
 local DEFAULT_CONFIG = {
     dungeonName = "Winter Outpost",
-    dungeonDifficulty = "Insane"
+    dungeonDifficulty = "Insane",
+    gameId = GAME_ID
 }
 
 local function LoadConfig()
     local config = {
         DUNGEON_NAME = DEFAULT_CONFIG.dungeonName,
-        DUNGEON_DIFFICULTY = DEFAULT_CONFIG.dungeonDifficulty
+        DUNGEON_DIFFICULTY = DEFAULT_CONFIG.dungeonDifficulty,
+        GAME_ID = GAME_ID
     }
     
-    if FileExists(CONFIG_PATH) then
-        local content = ReadFile(CONFIG_PATH)
+    local configFile = "config_" .. GAME_ID .. ".json"
+    
+    if FileExists(configFile) then
+        local content = ReadFile(configFile)
         if content then
             local success, decoded = pcall(function()
                 return HttpService:JSONDecode(content)
             end)
             
             if success and decoded then
-                print("✅ Configuration chargée depuis config.json")
+                print("✅ Configuration chargée depuis", configFile)
                 if decoded.dungeonName then config.DUNGEON_NAME = decoded.dungeonName end
                 if decoded.dungeonDifficulty then config.DUNGEON_DIFFICULTY = decoded.dungeonDifficulty end
                 print("  📌 Dungeon Name:", config.DUNGEON_NAME)
                 print("  📌 Dungeon Difficulty:", config.DUNGEON_DIFFICULTY)
+                print("  📌 Game ID:", config.GAME_ID)
                 return config
             end
         end
     end
     
-    -- Créer le fichier par défaut
-    print("📝 Création du fichier config.json...")
+    print("📝 Création du fichier", configFile, "...")
     local jsonString = HttpService:JSONEncode(DEFAULT_CONFIG)
-    WriteFile(CONFIG_PATH, jsonString)
-    print("✅ Fichier config.json créé avec les valeurs par défaut")
+    WriteFile(configFile, jsonString)
+    print("✅ Fichier", configFile, "créé avec les valeurs par défaut")
     print("  📌 Dungeon Name:", config.DUNGEON_NAME)
     print("  📌 Dungeon Difficulty:", config.DUNGEON_DIFFICULTY)
+    print("  📌 Game ID:", config.GAME_ID)
     
     return config
 end
@@ -161,7 +177,7 @@ task.wait(2)
 SpendSkillPoints()
 
 --------------------------------------------------
--- VÉRIFIER SI ON EST DANS LE LOBBY (introGui)
+-- VÉRIFIER SI ON EST DANS LE LOBBY
 --------------------------------------------------
 
 local function IsInLobby()
@@ -177,10 +193,6 @@ local function IsInLobby()
     
     return false
 end
-
---------------------------------------------------
--- VÉRIFIER SI LE BOUTON START EST VISIBLE
---------------------------------------------------
 
 local function IsStartButtonVisible()
     local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
@@ -219,6 +231,7 @@ local function CreateDungeon()
     print("🚀 Création du donjon avec la configuration:")
     print("  📌 Nom:", Config.DUNGEON_NAME)
     print("  📌 Difficulté:", Config.DUNGEON_DIFFICULTY)
+    print("  📌 Game ID:", Config.GAME_ID)
     
     local LobbyRemotes = ReplicatedStorage:FindFirstChild("remotes")
     if not LobbyRemotes then
@@ -276,7 +289,7 @@ local function StartDungeonRemote()
 end
 
 --------------------------------------------------
--- ATTENDRE LE LOBBY OU CRÉER QUAND MÊME
+-- ATTENDRE LE LOBBY
 --------------------------------------------------
 
 print("🔍 Attente du lobby...")
@@ -295,7 +308,6 @@ else
     print("⚠️ Lobby non détecté après " .. maxWait .. "s, création quand même...")
 end
 
--- Créer et démarrer le donjon
 CreateDungeon()
 task.wait(2)
 StartDungeonRemote()
@@ -344,7 +356,7 @@ if startButtonFound then
 end
 
 --------------------------------------------------
--- SURVEILLER EN BOUCLE LE BOUTON START
+-- SURVEILLANCES
 --------------------------------------------------
 
 task.spawn(function()
@@ -380,10 +392,6 @@ task.spawn(function()
     end
 end)
 
---------------------------------------------------
--- SURVEILLER L'ARRIVÉE DE NOUVEAUX POINTS
---------------------------------------------------
-
 task.spawn(function()
     local skillPoints = game:GetService("Players").LocalPlayer:FindFirstChild("skillPoints")
     
@@ -396,14 +404,8 @@ task.spawn(function()
             end
         end)
         print("👀 Surveillance des points de compétence activée")
-    else
-        print("❌ skillPoints introuvable pour la surveillance")
     end
 end)
-
---------------------------------------------------
--- SURVEILLER L'APPARITION DE introGui
---------------------------------------------------
 
 task.spawn(function()
     print("👀 Surveillance du lobby (introGui) activée")
@@ -431,7 +433,6 @@ end)
 --------------------------------------------------
 
 local Offset = 5
-local SlideSpeed = 5
 local SwingDelay = 0.1
 local isAttacking = false
 
@@ -531,7 +532,7 @@ local function SwingWeapon()
 end
 
 --------------------------------------------------
--- SE DÉPLACER VERS L'ENNEMI
+-- SE DÉPLACER VERS L'ENNEMI (AVEC WALKSPEED RÉEL)
 --------------------------------------------------
 
 local function SlideTo(enemy, startPos)
@@ -541,6 +542,14 @@ local function SlideTo(enemy, startPos)
     if not humanoid or humanoid.Health <= 0 then return end
     if not enemyHRP then return end
     if not HRP or not HRP.Parent then return end
+
+    local playerHumanoid = Character:FindFirstChildOfClass("Humanoid")
+    if not playerHumanoid then return end
+    
+    local walkSpeed = playerHumanoid.WalkSpeed
+    if walkSpeed < 10 then
+        walkSpeed = 16
+    end
 
     local pos = startPos
     local swingTimer = 0
@@ -564,7 +573,9 @@ local function SlideTo(enemy, startPos)
         local dt = heartbeat:Wait()
         
         if distance > 0.5 then
-            pos = pos:Lerp(targetPos, 1 - math.exp(-SlideSpeed * dt))
+            local speed = walkSpeed * 2.2
+            local step = math.min(1, speed * dt / distance)
+            pos = pos:Lerp(targetPos, step)
             stuckTime = 0
         else
             stuckTime = stuckTime + dt
@@ -585,7 +596,7 @@ local function SlideTo(enemy, startPos)
 end
 
 --------------------------------------------------
--- SPELLS (CORRIGÉ - UTILISE abilityEvent)
+-- SPELLS
 --------------------------------------------------
 
 task.spawn(function()
@@ -644,16 +655,10 @@ task.spawn(function()
             return 
         end
         
-        -- Utiliser abilityEvent directement depuis le tool
         if spell.AbilityEvent and spell.AbilityEvent:IsA("RemoteEvent") then
             pcall(function()
                 spell.AbilityEvent:FireServer()
                 print("⚡ Sort utilisé:", spell.Name, "| Slot:", spell.Slot)
-            end)
-        elseif spell.AbilityEvent and spell.AbilityEvent:IsA("RemoteFunction") then
-            pcall(function()
-                spell.AbilityEvent:InvokeServer()
-                print("⚡ Sort utilisé (RemoteFunction):", spell.Name, "| Slot:", spell.Slot)
             end)
         end
     end
@@ -672,7 +677,6 @@ end)
 --------------------------------------------------
 
 while true do
-    -- Mettre à jour le personnage
     local currentChar = LocalPlayer.Character
     if currentChar then
         Character = currentChar
@@ -682,7 +686,6 @@ while true do
         end
     end
     
-    -- Ne pas attaquer si déjà en cours ou si HRP est nil
     if isAttacking or not HRP or not HRP.Parent then
         task.wait(0.5)
         continue
