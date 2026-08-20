@@ -19,7 +19,7 @@ local queue = queue_on_teleport
            or queueonteleport
 
 if not queue then
-    print("❌ Queue on teleport non dispon")
+    print("❌ Queue on teleport non disponnible")
     return
 end
 
@@ -40,15 +40,11 @@ end)
 -- RÉCUPÉRER LE PLACE ID
 --------------------------------------------------
 
-local TARGET_PLACE_ID = "77649408247578" -- Le Place ID cible
+local TARGET_PLACE_ID = "77649408247578"
 local currentPlaceId = tostring(game.PlaceId)
 
 print("📍 Place ID actuel:", currentPlaceId)
 print("🎯 Place ID cible:", TARGET_PLACE_ID)
-
---------------------------------------------------
--- VÉRIFIER SI ON EST DANS LA BONNE MAP
---------------------------------------------------
 
 local canCreateDungeon = (currentPlaceId == TARGET_PLACE_ID)
 
@@ -56,9 +52,6 @@ if canCreateDungeon then
     print("✅ Place ID valide ! Création du donjon autorisée.")
 else
     print("⚠️ Place ID différent, le script continue mais ne créera pas de donjon.")
-    print("   Actuel:", currentPlaceId)
-    print("   Attendu:", TARGET_PLACE_ID)
-    print("📌 Le script va quand même farmer les donjons existants.")
 end
 
 --------------------------------------------------
@@ -235,7 +228,7 @@ local function IsStartButtonVisible()
 end
 
 --------------------------------------------------
--- CRÉER LE DONJON (SEULEMENT SI PLACE ID CORRECT)
+-- CRÉER LE DONJON
 --------------------------------------------------
 
 local function CreateDungeon()
@@ -310,7 +303,7 @@ local function StartDungeonRemote()
 end
 
 --------------------------------------------------
--- ATTENDRE LE LOBBY (SEULEMENT SI ON PEUT CRÉER)
+-- ATTENDRE LE LOBBY
 --------------------------------------------------
 
 if canCreateDungeon then
@@ -335,36 +328,35 @@ if canCreateDungeon then
     StartDungeonRemote()
 else
     print("⏭️ Étape de création du donjon sautée (Place ID incorrect)")
-    print("📌 Le script va directement farmer les donjons existants.")
 end
 
 --------------------------------------------------
--- ATTENDRE LE BOUTON START (SEULEMENT SI ON PEUT CRÉER)
+-- ATTENDRE LE BOUTON START
 --------------------------------------------------
-
-local function WaitForStartButton()
-    print("🔍 Attente du bouton START...")
-    local waitTime = 0
-    local maxWait = 60
-    
-    while not IsStartButtonVisible() and waitTime < maxWait do
-        task.wait(0.5)
-        waitTime = waitTime + 0.5
-        if waitTime % 2 == 0 then
-            print("⏳ Attente du bouton START... (" .. waitTime .. "s)")
-        end
-    end
-    
-    if IsStartButtonVisible() then
-        print("✅ Bouton START détecté !")
-        return true
-    else
-        print("⚠️ Bouton START non détecté après " .. maxWait .. "s")
-        return false
-    end
-end
 
 if canCreateDungeon then
+    local function WaitForStartButton()
+        print("🔍 Attente du bouton START...")
+        local waitTime = 0
+        local maxWait = 60
+        
+        while not IsStartButtonVisible() and waitTime < maxWait do
+            task.wait(0.5)
+            waitTime = waitTime + 0.5
+            if waitTime % 2 == 0 then
+                print("⏳ Attente du bouton START... (" .. waitTime .. "s)")
+            end
+        end
+        
+        if IsStartButtonVisible() then
+            print("✅ Bouton START détecté !")
+            return true
+        else
+            print("⚠️ Bouton START non détecté après " .. maxWait .. "s")
+            return false
+        end
+    end
+
     local startButtonFound = WaitForStartButton()
 
     if startButtonFound then
@@ -465,6 +457,7 @@ end)
 local Offset = 5
 local SwingDelay = 0.1
 local isAttacking = false
+local SPELL_RANGE = 5 -- Distance max pour utiliser les sorts
 
 --------------------------------------------------
 -- RÉCUPÉRER LES ENNEMIS
@@ -562,7 +555,81 @@ local function SwingWeapon()
 end
 
 --------------------------------------------------
--- SE DÉPLACER VERS L'ENNEMI (AVEC WALKSPEED RÉEL)
+-- UTILISER LES SORTS (CORRIGÉ AVEC LA BONNE SYNTAXE)
+--------------------------------------------------
+
+local function UseSpellsDuringSlide(enemyPosition)
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if not backpack then return end
+    
+    -- Vérifier la distance avec l'ennemi
+    if not HRP or not HRP.Parent then return end
+    local distance = (HRP.Position - enemyPosition).Magnitude
+    
+    -- Ne lancer les sorts que si on est à moins de 5 mètres
+    if distance > SPELL_RANGE then
+        return
+    end
+    
+    -- Récupérer abilityUsed
+    local abilityUsed = ReplicatedStorage:FindFirstChild("remotes")
+    if abilityUsed then
+        abilityUsed = abilityUsed:FindFirstChild("abilityUsed")
+    end
+    if not abilityUsed then return end
+    
+    -- Parcourir tous les tools dans le Backpack
+    for _, tool in ipairs(backpack:GetChildren()) do
+        if tool:IsA("Tool") then
+            local abilitySlot = tool:FindFirstChild("abilitySlot")
+            
+            if abilitySlot then
+                local slot = string.lower(tostring(abilitySlot.Value))
+                
+                -- Vérifier si le slot est Q ou E
+                if slot == "q" or slot == "e" then
+                    
+                    -- Vérifier le cooldown (si existe)
+                    local cooldown = tool:FindFirstChild("cooldown")
+                    local ready = true
+                    if cooldown then
+                        local value = cooldown.Value
+                        if cooldown:IsA("BoolValue") then
+                            ready = value == false
+                        elseif typeof(value) == "number" then
+                            ready = value <= 0
+                        end
+                    end
+                    
+                    if ready then
+                        pcall(function()
+                            -- 1. abilityUsed:FireServer(slot, tool)
+                            abilityUsed:FireServer(slot, tool)
+                            print("⚡ abilityUsed envoyé:", tool.Name, "| Slot:", slot)
+                            
+                            -- 2. spellEvent:FireServer() (si existe)
+                            local spellEvent = tool:FindFirstChild("spellEvent")
+                            if spellEvent and spellEvent:IsA("RemoteEvent") then
+                                spellEvent:FireServer()
+                                print("⚡ spellEvent envoyé:", tool.Name)
+                            end
+                            
+                            -- 3. abilityEvent:FireServer() (si existe)
+                            local abilityEvent = tool:FindFirstChild("abilityEvent")
+                            if abilityEvent and abilityEvent:IsA("RemoteEvent") then
+                                abilityEvent:FireServer()
+                                print("⚡ abilityEvent envoyé:", tool.Name)
+                            end
+                        end)
+                    end
+                end
+            end
+        end
+    end
+end
+
+--------------------------------------------------
+-- SE DÉPLACER VERS L'ENNEMI (AVEC SORTS À PORTÉE)
 --------------------------------------------------
 
 local function SlideTo(enemy, startPos)
@@ -585,6 +652,8 @@ local function SlideTo(enemy, startPos)
     local swingTimer = 0
     local stuckTime = 0
     local heartbeat = RunService.Heartbeat
+    local spellTimer = 0
+    local spellDelay = 0.2
 
     while true do
         if not HRP or not HRP.Parent then break end
@@ -613,10 +682,18 @@ local function SlideTo(enemy, startPos)
         
         SetProne(pos, enemyHRP.Position)
         
+        -- Attaque automatique
         swingTimer = swingTimer + dt
         if swingTimer >= SwingDelay then
             SwingWeapon()
             swingTimer = 0
+        end
+        
+        -- Utiliser les sorts si à portée
+        spellTimer = spellTimer + dt
+        if spellTimer >= spellDelay then
+            UseSpellsDuringSlide(enemyHRP.Position)
+            spellTimer = 0
         end
         
         if stuckTime >= 5 then
@@ -624,83 +701,6 @@ local function SlideTo(enemy, startPos)
         end
     end
 end
-
---------------------------------------------------
--- SPELLS
---------------------------------------------------
-
-task.spawn(function()
-    print("🔮 Initialisation des sorts...")
-    
-    local function GetSpellTools()
-        local spells = {}
-        local backpack = LocalPlayer:FindFirstChild("Backpack")
-        if not backpack then 
-            return spells 
-        end
-
-        for _, tool in ipairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") then
-                local abilitySlot = tool:FindFirstChild("abilitySlot")
-                local abilityEvent = tool:FindFirstChild("abilityEvent")
-                local cooldown = tool:FindFirstChild("cooldown")
-                
-                if abilitySlot and abilityEvent then
-                    local slot = string.lower(tostring(abilitySlot.Value))
-                    
-                    if slot == "q" or slot == "e" then
-                        table.insert(spells, {
-                            Tool = tool,
-                            Slot = slot,
-                            AbilityEvent = abilityEvent,
-                            Cooldown = cooldown,
-                            Name = tool.Name
-                        })
-                        print("🔮 Sort trouvé:", tool.Name, "| Slot:", slot)
-                    end
-                end
-            end
-        end
-        
-        print("📊 Total sorts trouvés (Q/E):", #spells)
-        return spells
-    end
-
-    local function IsReady(cooldown)
-        if not cooldown then return true end
-        
-        local value = cooldown.Value
-        if cooldown:IsA("BoolValue") then
-            return value == false
-        end
-        if typeof(value) == "number" then
-            return value <= 0
-        end
-        return true
-    end
-
-    local function UseSpell(spell)
-        if not spell then return end
-        if not IsReady(spell.Cooldown) then 
-            return 
-        end
-        
-        if spell.AbilityEvent and spell.AbilityEvent:IsA("RemoteEvent") then
-            pcall(function()
-                spell.AbilityEvent:FireServer()
-                print("⚡ Sort utilisé:", spell.Name, "| Slot:", spell.Slot)
-            end)
-        end
-    end
-
-    while true do
-        local spells = GetSpellTools()
-        for _, spell in ipairs(spells) do
-            UseSpell(spell)
-        end
-        task.wait(0.15)
-    end
-end)
 
 --------------------------------------------------
 -- BOUCLE PRINCIPALE
