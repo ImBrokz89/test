@@ -19,7 +19,7 @@ local queue = queue_on_teleport
            or queueonteleport
 
 if not queue then
-    print("❌ Queue on teleport non dispon")
+    print("❌ Queue on teleport non disponnible")
     return
 end
 
@@ -457,6 +457,7 @@ end)
 local Offset = 5
 local SwingDelay = 0.1
 local isAttacking = false
+local SLIDE_SPEED = 32 -- 🔥 Vitesse du slide
 
 --------------------------------------------------
 -- RÉCUPÉRER LES ENNEMIS
@@ -619,7 +620,7 @@ local function UseSpellsDuringSlide()
 end
 
 --------------------------------------------------
--- SE DÉPLACER VERS L'ENNEMI (AVEC SORTS EN CONTINU)
+-- SE DÉPLACER VERS L'ENNEMI (VITESSE 32)
 --------------------------------------------------
 
 local function SlideTo(enemy, startPos)
@@ -633,10 +634,12 @@ local function SlideTo(enemy, startPos)
     local playerHumanoid = Character:FindFirstChildOfClass("Humanoid")
     if not playerHumanoid then return end
     
-    local walkSpeed = playerHumanoid.WalkSpeed
-    if walkSpeed < 10 then
-        walkSpeed = 16
-    end
+    -- 🔥 Utiliser la vitesse définie
+    local walkSpeed = SLIDE_SPEED
+    
+    -- Sauvegarder la vitesse originale
+    local originalWalkSpeed = playerHumanoid.WalkSpeed
+    playerHumanoid.WalkSpeed = walkSpeed
 
     local pos = startPos
     local swingTimer = 0
@@ -679,7 +682,7 @@ local function SlideTo(enemy, startPos)
             swingTimer = 0
         end
         
-        -- 🔥 Utiliser les sorts en continu (sans vérification de distance)
+        -- Utiliser les sorts en continu
         spellTimer = spellTimer + dt
         if spellTimer >= spellDelay then
             UseSpellsDuringSlide()
@@ -690,6 +693,9 @@ local function SlideTo(enemy, startPos)
             break
         end
     end
+    
+    -- Restaurer la vitesse originale
+    playerHumanoid.WalkSpeed = originalWalkSpeed
 end
 
 --------------------------------------------------
