@@ -19,7 +19,7 @@ local queue = queue_on_teleport
            or queueonteleport
 
 if not queue then
-    print("❌ Queue on teleport non disponnible")
+    print("❌ Queue on teleport non dispon")
     return
 end
 
@@ -457,7 +457,6 @@ end)
 local Offset = 5
 local SwingDelay = 0.1
 local isAttacking = false
-local SPELL_RANGE = 5 -- Distance max pour utiliser les sorts
 
 --------------------------------------------------
 -- RÉCUPÉRER LES ENNEMIS
@@ -555,21 +554,12 @@ local function SwingWeapon()
 end
 
 --------------------------------------------------
--- UTILISER LES SORTS (CORRIGÉ AVEC LA BONNE SYNTAXE)
+-- UTILISER LES SORTS (SANS VÉRIFICATION DE DISTANCE)
 --------------------------------------------------
 
-local function UseSpellsDuringSlide(enemyPosition)
+local function UseSpellsDuringSlide()
     local backpack = LocalPlayer:FindFirstChild("Backpack")
     if not backpack then return end
-    
-    -- Vérifier la distance avec l'ennemi
-    if not HRP or not HRP.Parent then return end
-    local distance = (HRP.Position - enemyPosition).Magnitude
-    
-    -- Ne lancer les sorts que si on est à moins de 5 mètres
-    if distance > SPELL_RANGE then
-        return
-    end
     
     -- Récupérer abilityUsed
     local abilityUsed = ReplicatedStorage:FindFirstChild("remotes")
@@ -629,7 +619,7 @@ local function UseSpellsDuringSlide(enemyPosition)
 end
 
 --------------------------------------------------
--- SE DÉPLACER VERS L'ENNEMI (AVEC SORTS À PORTÉE)
+-- SE DÉPLACER VERS L'ENNEMI (AVEC SORTS EN CONTINU)
 --------------------------------------------------
 
 local function SlideTo(enemy, startPos)
@@ -653,7 +643,7 @@ local function SlideTo(enemy, startPos)
     local stuckTime = 0
     local heartbeat = RunService.Heartbeat
     local spellTimer = 0
-    local spellDelay = 0.2
+    local spellDelay = 0.15
 
     while true do
         if not HRP or not HRP.Parent then break end
@@ -689,10 +679,10 @@ local function SlideTo(enemy, startPos)
             swingTimer = 0
         end
         
-        -- Utiliser les sorts si à portée
+        -- 🔥 Utiliser les sorts en continu (sans vérification de distance)
         spellTimer = spellTimer + dt
         if spellTimer >= spellDelay then
-            UseSpellsDuringSlide(enemyHRP.Position)
+            UseSpellsDuringSlide()
             spellTimer = 0
         end
         
