@@ -114,7 +114,8 @@ local function CreateConfigInWorkspace()
     
     local defaultConfig = {
         dungeonName = "Pirate Island",
-        dungeonDifficulty = "Insane"
+        dungeonDifficulty = "Insane",
+        AutoReplay = false
     }
     
     local jsonString = FormatJSON(defaultConfig)
@@ -137,6 +138,7 @@ local function CreateConfigInWorkspace()
     print("📋 Configuration:")
     print("  📌 Dungeon Name:", defaultConfig.dungeonName)
     print("  📌 Dungeon Difficulty:", defaultConfig.dungeonDifficulty)
+    print("  📌 AutoReplay:", defaultConfig.AutoReplay)
     
     return defaultConfig
 end
@@ -148,7 +150,8 @@ end
 local function LoadConfigFromWorkspace()
     local config = {
         DUNGEON_NAME = "Pirate Island",
-        DUNGEON_DIFFICULTY = "Insane"
+        DUNGEON_DIFFICULTY = "Insane",
+        AUTO_REPLAY = false
     }
     
     local omegaFolder = workspace:FindFirstChild("Omega.Win")
@@ -181,9 +184,13 @@ local function LoadConfigFromWorkspace()
             if decoded.dungeonDifficulty then 
                 config.DUNGEON_DIFFICULTY = decoded.dungeonDifficulty 
             end
+            if decoded.AutoReplay ~= nil then
+                config.AUTO_REPLAY = decoded.AutoReplay
+            end
             
             print("  📌 Dungeon Name:", config.DUNGEON_NAME)
             print("  📌 Dungeon Difficulty:", config.DUNGEON_DIFFICULTY)
+            print("  📌 AutoReplay:", config.AUTO_REPLAY)
         else
             print("❌ Erreur de lecture du JSON, utilisation des valeurs par défaut")
             print("📝 Contenu actuel du fichier:", content)
@@ -296,6 +303,193 @@ local function IsStartButtonVisible()
 end
 
 --------------------------------------------------
+-- AUTO REPLAY
+--------------------------------------------------
+
+-- Fonction pour récupérer les infos du donjon
+local function GetDungeonInfo()
+    local info = {
+        dungeonName = "Unknown",
+        dungeonProgress = "inProgress",
+        dungeonFinished = false,
+        dungeonStarted = false,
+        isHardcore = false,
+        fightingBoss = false
+    }
+    
+    -- Récupérer le nom du donjon depuis workspace.dungeonName
+    local dungeonNameValue = workspace:FindFirstChild("dungeonName")
+    if dungeonNameValue and dungeonNameValue:IsA("StringValue") then
+        info.dungeonName = dungeonNameValue.Value
+    end
+    
+    -- Récupérer la progression du donjon depuis workspace.dungeonProgress
+    local dungeonProgressValue = workspace:FindFirstChild("dungeonProgress")
+    if dungeonProgressValue and dungeonProgressValue:IsA("StringValue") then
+        info.dungeonProgress = dungeonProgressValue.Value
+    end
+    
+    -- Récupérer dungeonFinished depuis workspace.dungeon.bossRoom.dungeonFinished
+    local dungeon = workspace:FindFirstChild("dungeon")
+    if dungeon then
+        local bossRoom = dungeon:FindFirstChild("bossRoom")
+        if bossRoom then
+            local dungeonFinishedValue = bossRoom:FindFirstChild("dungeonFinished")
+            if dungeonFinishedValue and dungeonFinishedValue:IsA("BoolValue") then
+                info.dungeonFinished = dungeonFinishedValue.Value
+            end
+        end
+    end
+    
+    -- Récupérer dungeonStarted depuis workspace.start
+    local startValue = workspace:FindFirstChild("start")
+    if startValue and startValue:IsA("BoolValue") then
+        info.dungeonStarted = startValue.Value
+    end
+    
+    -- Récupérer isHardcore depuis workspace.hardcore
+    local hardcoreValue = workspace:FindFirstChild("hardcore")
+    if hardcoreValue and hardcoreValue:IsA("BoolValue") then
+        info.isHardcore = hardcoreValue.Value
+    end
+    
+    return info
+end
+
+-- Fonction pour vérifier si le bouton Replay est visible
+local function IsReplayButtonVisible()
+    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+    if not playerGui then return false end
+    
+    local mainInterface = playerGui:FindFirstChild("mainInterface")
+    if not mainInterface then return false end
+    
+    local buttons = mainInterface:FindFirstChild("buttons")
+    if not buttons then return false end
+    
+    local optionsButton = buttons:FindFirstChild("optionsButton")
+    if not optionsButton then return false end
+    
+    local replayButton = optionsButton:FindFirstChild("ReplayDungeonButton")
+    if not replayButton then return false end
+    
+    -- Vérifier si le bouton est visible
+    if replayButton:IsA("GuiObject") then
+        return replayButton.Visible
+    end
+    
+    return false
+end
+
+-- Fonction pour lancer le replay
+local function ReplayDungeon()
+    print("🔄 Lancement du Auto Replay...")
+    
+    local dungeonInfo = GetDungeonInfo()
+    
+    print("📋 Infos du donjon:")
+    print("  📌 Nom:", dungeonInfo.dungeonName)
+    print("  📌 Progression:", dungeonInfo.dungeonProgress)
+    print("  📌 Dungeon Started:", dungeonInfo.dungeonStarted)
+    print("  📌 Dungeon Finished:", dungeonInfo.dungeonFinished)
+    print("  📌 Hardcore:", dungeonInfo.isHardcore)
+    
+    -- Vérifier si le donjon est fini ou a échoué
+    local shouldReplay = false
+    
+    if dungeonInfo.dungeonProgress == "bossKilled" then
+        print("✅ Boss tué ! Auto Replay déclenché.")
+        shouldReplay = true
+    elseif dungeonInfo.dungeonProgress == "hardcoreFailed" then
+        print("💀 Hardcore échoué ! Auto Replay déclenché.")
+        shouldReplay = true
+    elseif dungeonInfo.dungeonFinished == true then
+        print("✅ Donjon terminé ! Auto Replay déclenché.")
+        shouldReplay = true
+    end
+    
+    if not shouldReplay then
+        print("⏭️ Donjon pas encore fini, pas de replay.")
+        return
+    end
+    
+    -- Vérifier si le bouton Replay est visible
+    if not IsReplayButtonVisible() then
+        print("⚠️ Bouton Replay non visible, impossible de lancer le replay.")
+        return
+    end
+    
+    print("🟢 Bouton Replay visible ! Lancement...")
+    
+    -- Préparer les données pour le replay
+    local replayData = {
+        dungeonProgress = dungeonInfo.dungeonProgress,
+        dungeonStarted = dungeonInfo.dungeonStarted,
+        hardcore = dungeonInfo.isHardcore,
+        dungeonFinished = dungeonInfo.dungeonFinished,
+        dungeonName = dungeonInfo.dungeonName,
+        isHardcore = dungeonInfo.isHardcore,
+        fightingBoss = false
+    }
+    
+    -- Envoyer l'event replayDungeon
+    local Event = ReplicatedStorage:FindFirstChild("remotes")
+    if Event then
+        local replayEvent = Event:FindFirstChild("replayDungeon")
+        if replayEvent then
+            pcall(function()
+                replayEvent:FireServer(replayData)
+                print("✅ Replay envoyé !")
+                print("📋 Données envoyées:")
+                print("  📌 dungeonProgress:", replayData.dungeonProgress)
+                print("  📌 dungeonStarted:", replayData.dungeonStarted)
+                print("  📌 hardcore:", replayData.hardcore)
+                print("  📌 dungeonFinished:", replayData.dungeonFinished)
+                print("  📌 dungeonName:", replayData.dungeonName)
+                print("  📌 isHardcore:", replayData.isHardcore)
+                print("  📌 fightingBoss:", replayData.fightingBoss)
+            end)
+        else
+            print("❌ replayDungeon introuvable")
+        end
+    end
+end
+
+-- Fonction de surveillance Auto Replay
+local function StartAutoReplay()
+    print("👀 Surveillance Auto Replay activée")
+    
+    while true do
+        -- Vérifier si l'Auto Replay est activé dans la config
+        if Config.AUTO_REPLAY then
+            local dungeonInfo = GetDungeonInfo()
+            
+            -- Vérifier si le donjon est fini ou a échoué
+            local shouldReplay = false
+            
+            if dungeonInfo.dungeonProgress == "bossKilled" then
+                shouldReplay = true
+            elseif dungeonInfo.dungeonProgress == "hardcoreFailed" then
+                shouldReplay = true
+            elseif dungeonInfo.dungeonFinished == true then
+                shouldReplay = true
+            end
+            
+            if shouldReplay then
+                -- Vérifier si le bouton Replay est visible
+                if IsReplayButtonVisible() then
+                    ReplayDungeon()
+                    -- Attendre un peu après le replay
+                    task.wait(5)
+                end
+            end
+        end
+        
+        task.wait(2) -- Vérifier toutes les 2 secondes
+    end
+end
+
+--------------------------------------------------
 -- CRÉER LE DONJON
 --------------------------------------------------
 
@@ -399,6 +593,12 @@ task.spawn(function()
                         Config.DUNGEON_DIFFICULTY = decoded.dungeonDifficulty
                         hasChanged = true
                         print("🔄 Dungeon Difficulty mise à jour:", Config.DUNGEON_DIFFICULTY)
+                    end
+                    
+                    if decoded.AutoReplay ~= nil and decoded.AutoReplay ~= Config.AUTO_REPLAY then
+                        Config.AUTO_REPLAY = decoded.AutoReplay
+                        hasChanged = true
+                        print("🔄 AutoReplay mis à jour:", Config.AUTO_REPLAY)
                     end
                     
                     if hasChanged then
@@ -560,6 +760,13 @@ task.spawn(function()
 end)
 
 --------------------------------------------------
+-- DÉMARRER L'AUTO REPLAY
+--------------------------------------------------
+
+-- Démarrer la surveillance Auto Replay
+task.spawn(StartAutoReplay)
+
+--------------------------------------------------
 -- VARIABLES DE COMBAT
 --------------------------------------------------
 
@@ -567,7 +774,7 @@ local Offset = 5
 local SwingDelay = 0.1
 local isAttacking = false
 local SLIDE_SPEED = 32
-local SWING_RANGE = 10 -- 🔥 Distance pour le swing et les sorts
+local SWING_RANGE = 10
 
 --------------------------------------------------
 -- RÉCUPÉRER LES ENNEMIS
@@ -636,7 +843,6 @@ local function GetEquippedWeapon()
     local character = LocalPlayer.Character
     if not character then return nil end
     
-    -- 1. Chercher via weaponEquipped
     local weaponValue = LocalPlayer:FindFirstChild("weaponEquipped")
     if weaponValue then
         if weaponValue:IsA("ObjectValue") then
@@ -646,13 +852,11 @@ local function GetEquippedWeapon()
         end
     end
     
-    -- 2. Chercher "dualRight" directement
     local dualRight = character:FindFirstChild("dualRight")
     if dualRight then
         return dualRight
     end
     
-    -- 3. Chercher n'importe quel tool avec "swing"
     for _, child in ipairs(character:GetChildren()) do
         if child:IsA("Tool") then
             local swing = child:FindFirstChild("swing")
@@ -666,7 +870,7 @@ local function GetEquippedWeapon()
 end
 
 --------------------------------------------------
--- ATTAQUE (SWING) - À 10 MÈTRES
+-- ATTAQUE (SWING)
 --------------------------------------------------
 
 local function SwingWeapon()
@@ -682,11 +886,10 @@ local function SwingWeapon()
 end
 
 --------------------------------------------------
--- UTILISER LES SORTS - À 10 MÈTRES
+-- UTILISER LES SORTS
 --------------------------------------------------
 
 local function UseSpellsDuringSlide(enemyPosition)
-    -- Vérifier la distance
     if not HRP or not HRP.Parent then return end
     if not enemyPosition then return end
     
@@ -796,7 +999,6 @@ local function SlideTo(enemy, startPos)
         
         SetProne(pos, enemyHRP.Position)
         
-        -- ⚔️ Attaque et sorts uniquement si à 10 mètres ou moins
         if distanceToEnemy <= SWING_RANGE then
             swingTimer = swingTimer + dt
             if swingTimer >= SwingDelay then
