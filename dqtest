@@ -80,6 +80,21 @@ local function WriteFile(filename, content)
     return false
 end
 
+local function FolderExists(folderPath)
+    if isfolder then
+        return isfolder(folderPath)
+    end
+    return false
+end
+
+local function CreateFolder(folderPath)
+    if makefolder then
+        makefolder(folderPath)
+        return true
+    end
+    return false
+end
+
 --------------------------------------------------
 -- FONCTION POUR FORMATER LE JSON
 --------------------------------------------------
@@ -96,20 +111,24 @@ local function FormatJSON(data)
 end
 
 --------------------------------------------------
--- CRÉER LE DOSSIER ET LE FICHIER CONFIG DANS Workspace
+-- CRÉER LE DOSSIER ET LE FICHIER CONFIG
 --------------------------------------------------
 
-local function CreateConfigInWorkspace()
-    print("📁 Création du dossier Omega.Win dans Workspace...")
+local CONFIG_FOLDER = "Omega.Win"
+local CONFIG_FILE = CONFIG_FOLDER .. "/Config.json"
+
+local function CreateConfigOnDisk()
+    print("📁 Création du dossier " .. CONFIG_FOLDER .. "...")
     
-    local omegaFolder = workspace:FindFirstChild("Omega.Win")
-    if not omegaFolder then
-        omegaFolder = Instance.new("Folder")
-        omegaFolder.Name = "Omega.Win"
-        omegaFolder.Parent = workspace
-        print("✅ Dossier Omega.Win créé dans Workspace")
+    if not FolderExists(CONFIG_FOLDER) then
+        local success = CreateFolder(CONFIG_FOLDER)
+        if success then
+            print("✅ Dossier " .. CONFIG_FOLDER .. " créé")
+        else
+            print("❌ Impossible de créer le dossier " .. CONFIG_FOLDER)
+        end
     else
-        print("✅ Dossier Omega.Win déjà existant")
+        print("✅ Dossier " .. CONFIG_FOLDER .. " déjà existant")
     end
     
     local defaultConfig = {
@@ -120,85 +139,134 @@ local function CreateConfigInWorkspace()
     
     local jsonString = FormatJSON(defaultConfig)
     
-    print("📝 JSON généré:")
-    print(jsonString)
+    local success = WriteFile(CONFIG_FILE, jsonString)
     
-    local configFile = omegaFolder:FindFirstChild("Config.json")
-    if not configFile then
-        configFile = Instance.new("StringValue")
-        configFile.Name = "Config.json"
-        configFile.Value = jsonString
-        configFile.Parent = omegaFolder
-        print("✅ Fichier Config.json créé dans Omega.Win")
+    if success then
+        print("✅ Fichier Config.json créé dans " .. CONFIG_FOLDER)
+        print("📝 JSON généré:")
+        print(jsonString)
     else
-        configFile.Value = jsonString
-        print("✅ Fichier Config.json mis à jour")
+        print("❌ Impossible de créer le fichier Config.json")
     end
     
-    print("📋 Configuration:")
+    print("📋 Configuration par défaut:")
     print("  📌 Dungeon Name:", defaultConfig.dungeonName)
     print("  📌 Dungeon Difficulty:", defaultConfig.dungeonDifficulty)
     print("  📌 AutoReplay:", defaultConfig.AutoReplay)
     
-    return defaultConfig
+    return {
+        DUNGEON_NAME = defaultConfig.dungeonName,
+        DUNGEON_DIFFICULTY = defaultConfig.dungeonDifficulty,
+        AUTO_REPLAY = defaultConfig.AutoReplay
+    }
 end
 
 --------------------------------------------------
--- LIRE LA CONFIGURATION DEPUIS Workspace
+-- LIRE LA CONFIGURATION DEPUIS LE DISQUE
 --------------------------------------------------
 
-local function LoadConfigFromWorkspace()
-    local config = {
+local function LoadConfigFromDisk()
+    local defaultConfig = {
         DUNGEON_NAME = "Pirate Island",
         DUNGEON_DIFFICULTY = "Insane",
         AUTO_REPLAY = false
     }
     
-    local omegaFolder = workspace:FindFirstChild("Omega.Win")
-    if not omegaFolder then
-        print("⚠️ Dossier Omega.Win introuvable, création...")
-        return CreateConfigInWorkspace()
+    if not FolderExists(CONFIG_FOLDER) then
+        print("⚠️ Dossier " .. CONFIG_FOLDER .. " introuvable, création...")
+        return CreateConfigOnDisk()
     end
     
-    local configFile = omegaFolder:FindFirstChild("Config.json")
-    if not configFile then
+    if not FileExists(CONFIG_FILE) then
         print("⚠️ Fichier Config.json introuvable, création...")
-        return CreateConfigInWorkspace()
+        return CreateConfigOnDisk()
     end
     
-    if configFile:IsA("StringValue") then
-        local content = configFile.Value
+    local content = ReadFile(CONFIG_FILE)
+    if not content then
+        print("❌ Impossible de lire le fichier Config.json")
+        return CreateConfigOnDisk()
+    end
+    
+    local success, decoded = pcall(function()
+        return HttpService:JSONDecode(content)
+    end)
+    
+    if success and decoded then
+        print("✅ Configuration chargée depuis " .. CONFIG_FILE)
+        print("📋 Contenu du fichier:")
+        print(content)
         
-        local success, decoded = pcall(function()
-            return HttpService:JSONDecode(content)
-        end)
-        
-        if success and decoded then
-            print("✅ Configuration chargée depuis Workspace/Omega.Win/Config.json")
-            print("📋 Contenu du fichier:")
-            print(content)
-            
-            if decoded.dungeonName then 
-                config.DUNGEON_NAME = decoded.dungeonName 
-            end
-            if decoded.dungeonDifficulty then 
-                config.DUNGEON_DIFFICULTY = decoded.dungeonDifficulty 
-            end
-            if decoded.AutoReplay ~= nil then
-                config.AUTO_REPLAY = decoded.AutoReplay
-            end
-            
-            print("  📌 Dungeon Name:", config.DUNGEON_NAME)
-            print("  📌 Dungeon Difficulty:", config.DUNGEON_DIFFICULTY)
-            print("  📌 AutoReplay:", config.AUTO_REPLAY)
-        else
-            print("❌ Erreur de lecture du JSON, utilisation des valeurs par défaut")
-            print("📝 Contenu actuel du fichier:", content)
+        if decoded.dungeonName then 
+            defaultConfig.DUNGEON_NAME = decoded.dungeonName 
         end
+        if decoded.dungeonDifficulty then 
+            defaultConfig.DUNGEON_DIFFICULTY = decoded.dungeonDifficulty 
+        end
+        if decoded.AutoReplay ~= nil then
+            defaultConfig.AUTO_REPLAY = decoded.AutoReplay
+        end
+        
+        print("  📌 Dungeon Name:", defaultConfig.DUNGEON_NAME)
+        print("  📌 Dungeon Difficulty:", defaultConfig.DUNGEON_DIFFICULTY)
+        print("  📌 AutoReplay:", defaultConfig.AUTO_REPLAY)
+    else
+        print("❌ Erreur de lecture du JSON, utilisation des valeurs par défaut")
+        print("📝 Contenu actuel du fichier:", content)
+        return CreateConfigOnDisk()
     end
     
-    return config
+    return defaultConfig
 end
+
+--------------------------------------------------
+-- SURVEILLER LES CHANGEMENTS DE CONFIG
+--------------------------------------------------
+
+task.spawn(function()
+    print("👀 Surveillance du fichier " .. CONFIG_FILE .. " activée")
+    local lastContent = nil
+    
+    while true do
+        if FileExists(CONFIG_FILE) then
+            local content = ReadFile(CONFIG_FILE)
+            if content and content ~= lastContent then
+                lastContent = content
+                
+                local success, decoded = pcall(function()
+                    return HttpService:JSONDecode(content)
+                end)
+                
+                if success and decoded then
+                    local hasChanged = false
+                    
+                    if decoded.dungeonName and decoded.dungeonName ~= Config.DUNGEON_NAME then
+                        Config.DUNGEON_NAME = decoded.dungeonName
+                        hasChanged = true
+                        print("🔄 Dungeon Name mis à jour:", Config.DUNGEON_NAME)
+                    end
+                    
+                    if decoded.dungeonDifficulty and decoded.dungeonDifficulty ~= Config.DUNGEON_DIFFICULTY then
+                        Config.DUNGEON_DIFFICULTY = decoded.dungeonDifficulty
+                        hasChanged = true
+                        print("🔄 Dungeon Difficulty mise à jour:", Config.DUNGEON_DIFFICULTY)
+                    end
+                    
+                    if decoded.AutoReplay ~= nil and decoded.AutoReplay ~= Config.AUTO_REPLAY then
+                        Config.AUTO_REPLAY = decoded.AutoReplay
+                        hasChanged = true
+                        print("🔄 AutoReplay mis à jour:", Config.AUTO_REPLAY)
+                    end
+                    
+                    if hasChanged then
+                        print("📋 Nouvelle configuration chargée depuis " .. CONFIG_FILE)
+                    end
+                end
+            end
+        end
+        task.wait(2)
+    end
+end)
 
 --------------------------------------------------
 -- ATTENDRE LE SPAWN
@@ -215,10 +283,40 @@ task.wait(1)
 HRP = Character:FindFirstChild("HumanoidRootPart")
 
 --------------------------------------------------
--- CHARGER OU CRÉER LA CONFIGURATION DANS WORKSPACE
+-- CHARGER OU CRÉER LA CONFIGURATION
 --------------------------------------------------
 
-local Config = LoadConfigFromWorkspace()
+local Config = LoadConfigFromDisk()
+
+-- 🔥 VÉRIFICATION FORCÉE POUR ÉVITER LES ERREURS
+if not Config then
+    print("⚠️ Config est nil, création d'une configuration par défaut")
+    Config = {
+        DUNGEON_NAME = "Pirate Island",
+        DUNGEON_DIFFICULTY = "Insane",
+        AUTO_REPLAY = false
+    }
+end
+
+if not Config.DUNGEON_NAME or Config.DUNGEON_NAME == "" then
+    print("⚠️ Dungeon Name vide, utilisation de la valeur par défaut")
+    Config.DUNGEON_NAME = "Pirate Island"
+end
+
+if not Config.DUNGEON_DIFFICULTY or Config.DUNGEON_DIFFICULTY == "" then
+    print("⚠️ Dungeon Difficulty vide, utilisation de la valeur par défaut")
+    Config.DUNGEON_DIFFICULTY = "Insane"
+end
+
+if Config.AUTO_REPLAY == nil then
+    print("⚠️ AutoReplay nil, utilisation de la valeur par défaut")
+    Config.AUTO_REPLAY = false
+end
+
+print("🔍 Configuration finale:")
+print("  📌 Dungeon Name:", Config.DUNGEON_NAME)
+print("  📌 Dungeon Difficulty:", Config.DUNGEON_DIFFICULTY)
+print("  📌 AutoReplay:", Config.AUTO_REPLAY)
 
 --------------------------------------------------
 -- DÉPENSER LES POINTS DE COMPÉTENCE
@@ -306,7 +404,6 @@ end
 -- AUTO REPLAY
 --------------------------------------------------
 
--- Fonction pour récupérer les infos du donjon
 local function GetDungeonInfo()
     local info = {
         dungeonName = "Unknown",
@@ -317,19 +414,16 @@ local function GetDungeonInfo()
         fightingBoss = false
     }
     
-    -- Récupérer le nom du donjon depuis workspace.dungeonName
     local dungeonNameValue = workspace:FindFirstChild("dungeonName")
     if dungeonNameValue and dungeonNameValue:IsA("StringValue") then
         info.dungeonName = dungeonNameValue.Value
     end
     
-    -- Récupérer la progression du donjon depuis workspace.dungeonProgress
     local dungeonProgressValue = workspace:FindFirstChild("dungeonProgress")
     if dungeonProgressValue and dungeonProgressValue:IsA("StringValue") then
         info.dungeonProgress = dungeonProgressValue.Value
     end
     
-    -- Récupérer dungeonFinished depuis workspace.dungeon.bossRoom.dungeonFinished
     local dungeon = workspace:FindFirstChild("dungeon")
     if dungeon then
         local bossRoom = dungeon:FindFirstChild("bossRoom")
@@ -341,13 +435,11 @@ local function GetDungeonInfo()
         end
     end
     
-    -- Récupérer dungeonStarted depuis workspace.start
     local startValue = workspace:FindFirstChild("start")
     if startValue and startValue:IsA("BoolValue") then
         info.dungeonStarted = startValue.Value
     end
     
-    -- Récupérer isHardcore depuis workspace.hardcore
     local hardcoreValue = workspace:FindFirstChild("hardcore")
     if hardcoreValue and hardcoreValue:IsA("BoolValue") then
         info.isHardcore = hardcoreValue.Value
@@ -356,7 +448,6 @@ local function GetDungeonInfo()
     return info
 end
 
--- Fonction pour vérifier si le bouton Replay est visible
 local function IsReplayButtonVisible()
     local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
     if not playerGui then return false end
@@ -373,7 +464,6 @@ local function IsReplayButtonVisible()
     local replayButton = optionsButton:FindFirstChild("ReplayDungeonButton")
     if not replayButton then return false end
     
-    -- Vérifier si le bouton est visible
     if replayButton:IsA("GuiObject") then
         return replayButton.Visible
     end
@@ -381,7 +471,6 @@ local function IsReplayButtonVisible()
     return false
 end
 
--- Fonction pour lancer le replay
 local function ReplayDungeon()
     print("🔄 Lancement du Auto Replay...")
     
@@ -394,7 +483,6 @@ local function ReplayDungeon()
     print("  📌 Dungeon Finished:", dungeonInfo.dungeonFinished)
     print("  📌 Hardcore:", dungeonInfo.isHardcore)
     
-    -- Vérifier si le donjon est fini ou a échoué
     local shouldReplay = false
     
     if dungeonInfo.dungeonProgress == "bossKilled" then
@@ -413,7 +501,6 @@ local function ReplayDungeon()
         return
     end
     
-    -- Vérifier si le bouton Replay est visible
     if not IsReplayButtonVisible() then
         print("⚠️ Bouton Replay non visible, impossible de lancer le replay.")
         return
@@ -421,7 +508,6 @@ local function ReplayDungeon()
     
     print("🟢 Bouton Replay visible ! Lancement...")
     
-    -- Préparer les données pour le replay
     local replayData = {
         dungeonProgress = dungeonInfo.dungeonProgress,
         dungeonStarted = dungeonInfo.dungeonStarted,
@@ -432,7 +518,6 @@ local function ReplayDungeon()
         fightingBoss = false
     }
     
-    -- Envoyer l'event replayDungeon
     local Event = ReplicatedStorage:FindFirstChild("remotes")
     if Event then
         local replayEvent = Event:FindFirstChild("replayDungeon")
@@ -440,14 +525,6 @@ local function ReplayDungeon()
             pcall(function()
                 replayEvent:FireServer(replayData)
                 print("✅ Replay envoyé !")
-                print("📋 Données envoyées:")
-                print("  📌 dungeonProgress:", replayData.dungeonProgress)
-                print("  📌 dungeonStarted:", replayData.dungeonStarted)
-                print("  📌 hardcore:", replayData.hardcore)
-                print("  📌 dungeonFinished:", replayData.dungeonFinished)
-                print("  📌 dungeonName:", replayData.dungeonName)
-                print("  📌 isHardcore:", replayData.isHardcore)
-                print("  📌 fightingBoss:", replayData.fightingBoss)
             end)
         else
             print("❌ replayDungeon introuvable")
@@ -455,16 +532,13 @@ local function ReplayDungeon()
     end
 end
 
--- Fonction de surveillance Auto Replay
 local function StartAutoReplay()
     print("👀 Surveillance Auto Replay activée")
     
     while true do
-        -- Vérifier si l'Auto Replay est activé dans la config
         if Config.AUTO_REPLAY then
             local dungeonInfo = GetDungeonInfo()
             
-            -- Vérifier si le donjon est fini ou a échoué
             local shouldReplay = false
             
             if dungeonInfo.dungeonProgress == "bossKilled" then
@@ -476,16 +550,14 @@ local function StartAutoReplay()
             end
             
             if shouldReplay then
-                -- Vérifier si le bouton Replay est visible
                 if IsReplayButtonVisible() then
                     ReplayDungeon()
-                    -- Attendre un peu après le replay
                     task.wait(5)
                 end
             end
         end
         
-        task.wait(2) -- Vérifier toutes les 2 secondes
+        task.wait(2)
     end
 end
 
@@ -563,53 +635,6 @@ local function StartDungeonRemote()
     
     return true
 end
-
---------------------------------------------------
--- SURVEILLER LES CHANGEMENTS DE CONFIG DANS WORKSPACE
---------------------------------------------------
-
-task.spawn(function()
-    print("👀 Surveillance du fichier Workspace/Omega.Win/Config.json activée")
-    
-    while true do
-        local omegaFolder = workspace:FindFirstChild("Omega.Win")
-        if omegaFolder then
-            local configFile = omegaFolder:FindFirstChild("Config.json")
-            if configFile and configFile:IsA("StringValue") then
-                local success, decoded = pcall(function()
-                    return HttpService:JSONDecode(configFile.Value)
-                end)
-                
-                if success and decoded then
-                    local hasChanged = false
-                    
-                    if decoded.dungeonName and decoded.dungeonName ~= Config.DUNGEON_NAME then
-                        Config.DUNGEON_NAME = decoded.dungeonName
-                        hasChanged = true
-                        print("🔄 Dungeon Name mis à jour:", Config.DUNGEON_NAME)
-                    end
-                    
-                    if decoded.dungeonDifficulty and decoded.dungeonDifficulty ~= Config.DUNGEON_DIFFICULTY then
-                        Config.DUNGEON_DIFFICULTY = decoded.dungeonDifficulty
-                        hasChanged = true
-                        print("🔄 Dungeon Difficulty mise à jour:", Config.DUNGEON_DIFFICULTY)
-                    end
-                    
-                    if decoded.AutoReplay ~= nil and decoded.AutoReplay ~= Config.AUTO_REPLAY then
-                        Config.AUTO_REPLAY = decoded.AutoReplay
-                        hasChanged = true
-                        print("🔄 AutoReplay mis à jour:", Config.AUTO_REPLAY)
-                    end
-                    
-                    if hasChanged then
-                        print("📋 Nouvelle configuration chargée depuis Workspace!")
-                    end
-                end
-            end
-        end
-        task.wait(2)
-    end
-end)
 
 --------------------------------------------------
 -- ATTENDRE LE LOBBY
@@ -763,7 +788,6 @@ end)
 -- DÉMARRER L'AUTO REPLAY
 --------------------------------------------------
 
--- Démarrer la surveillance Auto Replay
 task.spawn(StartAutoReplay)
 
 --------------------------------------------------
