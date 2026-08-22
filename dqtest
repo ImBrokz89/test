@@ -19,7 +19,7 @@ local queue = queue_on_teleport
            or queueonteleport
 
 if not queue then
-    print("❌ Queue on teleport non disponnible")
+    print("❌ Queue on teleport non dispon")
     return
 end
 
@@ -81,6 +81,119 @@ local function WriteFile(filename, content)
 end
 
 --------------------------------------------------
+-- FONCTION POUR FORMATER LE JSON
+--------------------------------------------------
+
+local function FormatJSON(data)
+    local json = HttpService:JSONEncode(data)
+    
+    json = string.gsub(json, "{", "{\n  ")
+    json = string.gsub(json, "}", "\n}")
+    json = string.gsub(json, ",", ",\n  ")
+    json = string.gsub(json, "\n  \n", "\n")
+    
+    return json
+end
+
+--------------------------------------------------
+-- CRÉER LE DOSSIER ET LE FICHIER CONFIG DANS Workspace
+--------------------------------------------------
+
+local function CreateConfigInWorkspace()
+    print("📁 Création du dossier Omega.Win dans Workspace...")
+    
+    local omegaFolder = workspace:FindFirstChild("Omega.Win")
+    if not omegaFolder then
+        omegaFolder = Instance.new("Folder")
+        omegaFolder.Name = "Omega.Win"
+        omegaFolder.Parent = workspace
+        print("✅ Dossier Omega.Win créé dans Workspace")
+    else
+        print("✅ Dossier Omega.Win déjà existant")
+    end
+    
+    local defaultConfig = {
+        dungeonName = "Pirate Island",
+        dungeonDifficulty = "Insane"
+    }
+    
+    local jsonString = FormatJSON(defaultConfig)
+    
+    print("📝 JSON généré:")
+    print(jsonString)
+    
+    local configFile = omegaFolder:FindFirstChild("Config.json")
+    if not configFile then
+        configFile = Instance.new("StringValue")
+        configFile.Name = "Config.json"
+        configFile.Value = jsonString
+        configFile.Parent = omegaFolder
+        print("✅ Fichier Config.json créé dans Omega.Win")
+    else
+        configFile.Value = jsonString
+        print("✅ Fichier Config.json mis à jour")
+    end
+    
+    print("📋 Configuration:")
+    print("  📌 Dungeon Name:", defaultConfig.dungeonName)
+    print("  📌 Dungeon Difficulty:", defaultConfig.dungeonDifficulty)
+    
+    return defaultConfig
+end
+
+--------------------------------------------------
+-- LIRE LA CONFIGURATION DEPUIS Workspace
+--------------------------------------------------
+
+local function LoadConfigFromWorkspace()
+    local config = {
+        DUNGEON_NAME = "Pirate Island",
+        DUNGEON_DIFFICULTY = "Insane"
+    }
+    
+    local omegaFolder = workspace:FindFirstChild("Omega.Win")
+    if not omegaFolder then
+        print("⚠️ Dossier Omega.Win introuvable, création...")
+        return CreateConfigInWorkspace()
+    end
+    
+    local configFile = omegaFolder:FindFirstChild("Config.json")
+    if not configFile then
+        print("⚠️ Fichier Config.json introuvable, création...")
+        return CreateConfigInWorkspace()
+    end
+    
+    if configFile:IsA("StringValue") then
+        local content = configFile.Value
+        
+        local success, decoded = pcall(function()
+            return HttpService:JSONDecode(content)
+        end)
+        
+        if success and decoded then
+            print("✅ Configuration chargée depuis Workspace/Omega.Win/Config.json")
+            print("📋 Contenu du fichier:")
+            print(content)
+            
+            if decoded.dungeonName then 
+                config.DUNGEON_NAME = decoded.dungeonName 
+            end
+            if decoded.dungeonDifficulty then 
+                config.DUNGEON_DIFFICULTY = decoded.dungeonDifficulty 
+            end
+            
+            print("  📌 Dungeon Name:", config.DUNGEON_NAME)
+            print("  📌 Dungeon Difficulty:", config.DUNGEON_DIFFICULTY)
+        else
+            print("❌ Erreur de lecture du JSON, utilisation des valeurs par défaut")
+            print("📝 Contenu actuel du fichier:", content)
+        end
+    end
+    
+    return config
+end
+
+--------------------------------------------------
 -- ATTENDRE LE SPAWN
 --------------------------------------------------
 
@@ -95,55 +208,10 @@ task.wait(1)
 HRP = Character:FindFirstChild("HumanoidRootPart")
 
 --------------------------------------------------
--- CHARGER OU CRÉER LA CONFIGURATION
+-- CHARGER OU CRÉER LA CONFIGURATION DANS WORKSPACE
 --------------------------------------------------
 
-local CONFIG_PATH = "config_" .. currentPlaceId .. ".json"
-
-local DEFAULT_CONFIG = {
-    dungeonName = "Winter Outpost",
-    dungeonDifficulty = "Insane",
-    placeId = currentPlaceId
-}
-
-local function LoadConfig()
-    local config = {
-        DUNGEON_NAME = DEFAULT_CONFIG.dungeonName,
-        DUNGEON_DIFFICULTY = DEFAULT_CONFIG.dungeonDifficulty,
-        PLACE_ID = currentPlaceId
-    }
-    
-    if FileExists(CONFIG_PATH) then
-        local content = ReadFile(CONFIG_PATH)
-        if content then
-            local success, decoded = pcall(function()
-                return HttpService:JSONDecode(content)
-            end)
-            
-            if success and decoded then
-                print("✅ Configuration chargée depuis", CONFIG_PATH)
-                if decoded.dungeonName then config.DUNGEON_NAME = decoded.dungeonName end
-                if decoded.dungeonDifficulty then config.DUNGEON_DIFFICULTY = decoded.dungeonDifficulty end
-                print("  📌 Dungeon Name:", config.DUNGEON_NAME)
-                print("  📌 Dungeon Difficulty:", config.DUNGEON_DIFFICULTY)
-                print("  📌 Place ID:", config.PLACE_ID)
-                return config
-            end
-        end
-    end
-    
-    print("📝 Création du fichier", CONFIG_PATH, "...")
-    local jsonString = HttpService:JSONEncode(DEFAULT_CONFIG)
-    WriteFile(CONFIG_PATH, jsonString)
-    print("✅ Fichier", CONFIG_PATH, "créé avec les valeurs par défaut")
-    print("  📌 Dungeon Name:", config.DUNGEON_NAME)
-    print("  📌 Dungeon Difficulty:", config.DUNGEON_DIFFICULTY)
-    print("  📌 Place ID:", config.PLACE_ID)
-    
-    return config
-end
-
-local Config = LoadConfig()
+local Config = LoadConfigFromWorkspace()
 
 --------------------------------------------------
 -- DÉPENSER LES POINTS DE COMPÉTENCE
@@ -240,7 +308,7 @@ local function CreateDungeon()
     print("🚀 Création du donjon avec la configuration:")
     print("  📌 Nom:", Config.DUNGEON_NAME)
     print("  📌 Difficulté:", Config.DUNGEON_DIFFICULTY)
-    print("  📌 Place ID:", Config.PLACE_ID)
+    print("  📌 Place ID:", TARGET_PLACE_ID)
     
     local LobbyRemotes = ReplicatedStorage:FindFirstChild("remotes")
     if not LobbyRemotes then
@@ -301,6 +369,47 @@ local function StartDungeonRemote()
     
     return true
 end
+
+--------------------------------------------------
+-- SURVEILLER LES CHANGEMENTS DE CONFIG DANS WORKSPACE
+--------------------------------------------------
+
+task.spawn(function()
+    print("👀 Surveillance du fichier Workspace/Omega.Win/Config.json activée")
+    
+    while true do
+        local omegaFolder = workspace:FindFirstChild("Omega.Win")
+        if omegaFolder then
+            local configFile = omegaFolder:FindFirstChild("Config.json")
+            if configFile and configFile:IsA("StringValue") then
+                local success, decoded = pcall(function()
+                    return HttpService:JSONDecode(configFile.Value)
+                end)
+                
+                if success and decoded then
+                    local hasChanged = false
+                    
+                    if decoded.dungeonName and decoded.dungeonName ~= Config.DUNGEON_NAME then
+                        Config.DUNGEON_NAME = decoded.dungeonName
+                        hasChanged = true
+                        print("🔄 Dungeon Name mis à jour:", Config.DUNGEON_NAME)
+                    end
+                    
+                    if decoded.dungeonDifficulty and decoded.dungeonDifficulty ~= Config.DUNGEON_DIFFICULTY then
+                        Config.DUNGEON_DIFFICULTY = decoded.dungeonDifficulty
+                        hasChanged = true
+                        print("🔄 Dungeon Difficulty mise à jour:", Config.DUNGEON_DIFFICULTY)
+                    end
+                    
+                    if hasChanged then
+                        print("📋 Nouvelle configuration chargée depuis Workspace!")
+                    end
+                end
+            end
+        end
+        task.wait(2)
+    end
+end)
 
 --------------------------------------------------
 -- ATTENDRE LE LOBBY
@@ -457,7 +566,8 @@ end)
 local Offset = 5
 local SwingDelay = 0.1
 local isAttacking = false
-local SLIDE_SPEED = 32 -- 🔥 Vitesse du slide
+local SLIDE_SPEED = 32
+local SWING_RANGE = 10 -- 🔥 Distance pour le swing et les sorts
 
 --------------------------------------------------
 -- RÉCUPÉRER LES ENNEMIS
@@ -523,53 +633,75 @@ end
 --------------------------------------------------
 
 local function GetEquippedWeapon()
+    local character = LocalPlayer.Character
+    if not character then return nil end
+    
+    -- 1. Chercher via weaponEquipped
     local weaponValue = LocalPlayer:FindFirstChild("weaponEquipped")
-    if not weaponValue then return nil end
-
-    if weaponValue:IsA("ObjectValue") then
-        return weaponValue.Value
-    end
-
-    if weaponValue:IsA("StringValue") then
-        local character = LocalPlayer.Character
-        if character then
+    if weaponValue then
+        if weaponValue:IsA("ObjectValue") then
+            return weaponValue.Value
+        elseif weaponValue:IsA("StringValue") then
             return character:FindFirstChild(weaponValue.Value)
         end
     end
-
+    
+    -- 2. Chercher "dualRight" directement
+    local dualRight = character:FindFirstChild("dualRight")
+    if dualRight then
+        return dualRight
+    end
+    
+    -- 3. Chercher n'importe quel tool avec "swing"
+    for _, child in ipairs(character:GetChildren()) do
+        if child:IsA("Tool") then
+            local swing = child:FindFirstChild("swing")
+            if swing and swing:IsA("RemoteEvent") then
+                return child
+            end
+        end
+    end
+    
     return nil
 end
 
 --------------------------------------------------
--- ATTAQUE
+-- ATTAQUE (SWING) - À 10 MÈTRES
 --------------------------------------------------
 
 local function SwingWeapon()
     local weapon = GetEquippedWeapon()
     if not weapon then return end
-
+    
     local swing = weapon:FindFirstChild("swing")
     if swing and swing:IsA("RemoteEvent") then
-        swing:FireServer()
+        pcall(function()
+            swing:FireServer()
+        end)
     end
 end
 
 --------------------------------------------------
--- UTILISER LES SORTS (SANS VÉRIFICATION DE DISTANCE)
+-- UTILISER LES SORTS - À 10 MÈTRES
 --------------------------------------------------
 
-local function UseSpellsDuringSlide()
+local function UseSpellsDuringSlide(enemyPosition)
+    -- Vérifier la distance
+    if not HRP or not HRP.Parent then return end
+    if not enemyPosition then return end
+    
+    local distance = (HRP.Position - enemyPosition).Magnitude
+    if distance > SWING_RANGE then return end
+    
     local backpack = LocalPlayer:FindFirstChild("Backpack")
     if not backpack then return end
     
-    -- Récupérer abilityUsed
     local abilityUsed = ReplicatedStorage:FindFirstChild("remotes")
     if abilityUsed then
         abilityUsed = abilityUsed:FindFirstChild("abilityUsed")
     end
     if not abilityUsed then return end
     
-    -- Parcourir tous les tools dans le Backpack
     for _, tool in ipairs(backpack:GetChildren()) do
         if tool:IsA("Tool") then
             local abilitySlot = tool:FindFirstChild("abilitySlot")
@@ -577,10 +709,7 @@ local function UseSpellsDuringSlide()
             if abilitySlot then
                 local slot = string.lower(tostring(abilitySlot.Value))
                 
-                -- Vérifier si le slot est Q ou E
                 if slot == "q" or slot == "e" then
-                    
-                    -- Vérifier le cooldown (si existe)
                     local cooldown = tool:FindFirstChild("cooldown")
                     local ready = true
                     if cooldown then
@@ -594,22 +723,16 @@ local function UseSpellsDuringSlide()
                     
                     if ready then
                         pcall(function()
-                            -- 1. abilityUsed:FireServer(slot, tool)
                             abilityUsed:FireServer(slot, tool)
-                            print("⚡ abilityUsed envoyé:", tool.Name, "| Slot:", slot)
                             
-                            -- 2. spellEvent:FireServer() (si existe)
                             local spellEvent = tool:FindFirstChild("spellEvent")
                             if spellEvent and spellEvent:IsA("RemoteEvent") then
                                 spellEvent:FireServer()
-                                print("⚡ spellEvent envoyé:", tool.Name)
                             end
                             
-                            -- 3. abilityEvent:FireServer() (si existe)
                             local abilityEvent = tool:FindFirstChild("abilityEvent")
                             if abilityEvent and abilityEvent:IsA("RemoteEvent") then
                                 abilityEvent:FireServer()
-                                print("⚡ abilityEvent envoyé:", tool.Name)
                             end
                         end)
                     end
@@ -620,7 +743,7 @@ local function UseSpellsDuringSlide()
 end
 
 --------------------------------------------------
--- SE DÉPLACER VERS L'ENNEMI (VITESSE 32)
+-- SE DÉPLACER VERS L'ENNEMI
 --------------------------------------------------
 
 local function SlideTo(enemy, startPos)
@@ -634,10 +757,7 @@ local function SlideTo(enemy, startPos)
     local playerHumanoid = Character:FindFirstChildOfClass("Humanoid")
     if not playerHumanoid then return end
     
-    -- 🔥 Utiliser la vitesse définie
     local walkSpeed = SLIDE_SPEED
-    
-    -- Sauvegarder la vitesse originale
     local originalWalkSpeed = playerHumanoid.WalkSpeed
     playerHumanoid.WalkSpeed = walkSpeed
 
@@ -661,6 +781,7 @@ local function SlideTo(enemy, startPos)
         
         local targetPos = enemyHRP.Position + Vector3.new(0, Offset, 0)
         local distance = (targetPos - pos).Magnitude
+        local distanceToEnemy = (HRP.Position - enemyHRP.Position).Magnitude
         
         local dt = heartbeat:Wait()
         
@@ -675,18 +796,19 @@ local function SlideTo(enemy, startPos)
         
         SetProne(pos, enemyHRP.Position)
         
-        -- Attaque automatique
-        swingTimer = swingTimer + dt
-        if swingTimer >= SwingDelay then
-            SwingWeapon()
-            swingTimer = 0
-        end
-        
-        -- Utiliser les sorts en continu
-        spellTimer = spellTimer + dt
-        if spellTimer >= spellDelay then
-            UseSpellsDuringSlide()
-            spellTimer = 0
+        -- ⚔️ Attaque et sorts uniquement si à 10 mètres ou moins
+        if distanceToEnemy <= SWING_RANGE then
+            swingTimer = swingTimer + dt
+            if swingTimer >= SwingDelay then
+                SwingWeapon()
+                swingTimer = 0
+            end
+            
+            spellTimer = spellTimer + dt
+            if spellTimer >= spellDelay then
+                UseSpellsDuringSlide(enemyHRP.Position)
+                spellTimer = 0
+            end
         end
         
         if stuckTime >= 5 then
@@ -694,7 +816,6 @@ local function SlideTo(enemy, startPos)
         end
     end
     
-    -- Restaurer la vitesse originale
     playerHumanoid.WalkSpeed = originalWalkSpeed
 end
 
